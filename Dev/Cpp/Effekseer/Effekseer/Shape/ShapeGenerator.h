@@ -152,7 +152,7 @@ enum class ShapeType : uint8_t
 	Cylinder,
 };
 
-struct ShapeKey
+struct ProcedualModelParameter
 {
 	ShapeType Type;
 
@@ -188,15 +188,36 @@ struct ShapeKey
 		} Cylinder;
 	};
 
+	bool operator<(const ProcedualModelParameter& rhs) const
+	{
+		if (Type != rhs.Type)
+		{
+			return static_cast<int32_t>(Type) < static_cast<int32_t>(Type);
+		}
 
+		if (Type == ShapeType::Sphere)
+		{
+			if (Sphere.Radius != rhs.Sphere.Radius)
+				return Sphere.Radius < rhs.Sphere.Radius;
+		}
+
+		return false;
+	}
 };
 
-class ModelShape
+class ProcedualModelGenerator
 {
 public:
-	// VS
-	// INDEX
+	virtual Model* Generate(const ProcedualModelParameter* shapeKey)
+	{
+		return nullptr;
+	}
+
+	virtual void Ungenerate(Model* model)
+	{
+	}
 };
+
 
 } // namespace Effekseer
 

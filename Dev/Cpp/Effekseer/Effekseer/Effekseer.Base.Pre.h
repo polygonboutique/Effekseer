@@ -89,6 +89,8 @@ class Model;
 class CurveLoader;
 class Curve;
 
+struct ProcedualModelParameter;
+
 typedef int Handle;
 
 /**

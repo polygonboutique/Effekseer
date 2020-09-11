@@ -38,17 +38,6 @@ public:
 		Color VColor;
 	};
 
-	struct VertexWithIndex
-	{
-		Vector3D Position;
-		Vector3D Normal;
-		Vector3D Binormal;
-		Vector3D Tangent;
-		Vector2D UV;
-		Color VColor;
-		uint8_t Index[4];
-	};
-
 	struct Face
 	{
 		int32_t Indexes[3];
@@ -86,6 +75,20 @@ protected:
 	int32_t m_vertexSize = sizeof(Vertex);
 
 public:
+	Model(const CustomVector<Vertex>& vertecies, const CustomVector<Face>& faces)
+	{
+		m_modelCount = 1;
+		m_frameCount = 1;
+		models = new InternalModel[1];
+		models->m_vertexCount = static_cast<int32_t>(vertecies.size());
+		models->m_faceCount = static_cast<int32_t>(faces.size());
+		models->m_vertexes = new Vertex[models->m_vertexCount];
+		models->m_faces = new Face[models->m_faceCount];
+
+		memcpy(models->m_vertexes, vertecies.data(), sizeof(Vertex) * models->m_vertexCount);
+		memcpy(models->m_faces, faces.data(), sizeof(Face) * models->m_faceCount);
+	}
+
 	/**
 	@brief
 	\~English	Constructor

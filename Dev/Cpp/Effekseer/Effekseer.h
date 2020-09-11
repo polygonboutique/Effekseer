@@ -89,6 +89,8 @@ class Model;
 class CurveLoader;
 class Curve;
 
+struct ProcedualModelParameter;
+
 typedef int Handle;
 
 /**
@@ -2187,6 +2189,24 @@ public:
 	virtual const EFK_CHAR* GetCurvePath(int n) const = 0;
 
 	/**
+	@brief	\~English	Get a procedual model's pointer
+	\~Japanese	格納されているプロシージャルモデルのポインタを取得する。
+	*/
+	virtual Model* GetProcedualModel(int n) const = 0;
+
+	/**
+	@brief	\~English	Get the number of stored procedual model's pointer
+	\~Japanese	格納されているプロシージャルモデルのポインタの個数を取得する。
+	*/
+	virtual int32_t GetProcedualModelCount() const = 0;
+
+	/**
+	@brief	\~English	Get a procedual model's parameter
+	\~Japanese	格納されているプロシージャルモデルのパラメーターを取得する。
+	*/
+	virtual const ProcedualModelParameter* GetProcedualModelParameter(int n) const = 0;
+
+	/**
 		@brief
 		\~English set texture data into specified index
 		\~Japanese	指定されたインデックスにテクスチャを設定する。
@@ -3710,17 +3730,6 @@ public:
 		Color VColor;
 	};
 
-	struct VertexWithIndex
-	{
-		Vector3D Position;
-		Vector3D Normal;
-		Vector3D Binormal;
-		Vector3D Tangent;
-		Vector2D UV;
-		Color VColor;
-		uint8_t Index[4];
-	};
-
 	struct Face
 	{
 		int32_t Indexes[3];
@@ -3758,6 +3767,20 @@ protected:
 	int32_t m_vertexSize = sizeof(Vertex);
 
 public:
+	Model(const CustomVector<Vertex>& vertecies, const CustomVector<Face>& faces)
+	{
+		m_modelCount = 1;
+		m_frameCount = 1;
+		models = new InternalModel[1];
+		models->m_vertexCount = static_cast<int32_t>(vertecies.size());
+		models->m_faceCount = static_cast<int32_t>(faces.size());
+		models->m_vertexes = new Vertex[models->m_vertexCount];
+		models->m_faces = new Face[models->m_faceCount];
+
+		memcpy(models->m_vertexes, vertecies.data(), sizeof(Vertex) * models->m_vertexCount);
+		memcpy(models->m_faces, faces.data(), sizeof(Face) * models->m_faceCount);
+	}
+
 	/**
 	@brief
 	\~English	Constructor
@@ -4756,6 +4779,7 @@ public:
 #ifndef __EFFEKSEER_SERVER_H__
 #define __EFFEKSEER_SERVER_H__
 
+#if !(defined(__EFFEKSEER_NETWORK_DISABLED__))
 #if !(defined(_PSVITA) || defined(_XBOXONE))
 
 //----------------------------------------------------------------------------------
@@ -4875,12 +4899,14 @@ public:
 //----------------------------------------------------------------------------------
 
 #endif // #if !( defined(_PSVITA) || defined(_XBOXONE) )
+#endif
 
 #endif // __EFFEKSEER_SERVER_H__
 
 #ifndef __EFFEKSEER_CLIENT_H__
 #define __EFFEKSEER_CLIENT_H__
 
+#if !(defined(__EFFEKSEER_NETWORK_DISABLED__))
 #if !(defined(_PSVITA) || defined(_PS4) || defined(_SWITCH) || defined(_XBOXONE))
 
 //----------------------------------------------------------------------------------
@@ -4924,7 +4950,7 @@ public:
 //----------------------------------------------------------------------------------
 
 #endif // #if !( defined(_PSVITA) || defined(_PS4) || defined(_SWITCH) || defined(_XBOXONE) )
-
+#endif
 #endif // __EFFEKSEER_CLIENT_H__
 
 #ifndef __EFFEKSEER_GRAPHICS_DEVICE_H__

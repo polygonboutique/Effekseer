@@ -1193,6 +1193,31 @@ const EFK_CHAR* EffectImplemented::GetCurvePath(int n) const
 	return curvePaths_[n];
 }
 
+Model* EffectImplemented::GetProcedualModel(int n) const
+{
+	if (n < 0 || n >= GetProcedualModelCount())
+	{
+		return nullptr;
+	}
+
+	return procedualModels_[n];
+}
+
+int32_t EffectImplemented::GetProcedualModelCount() const
+{
+	return static_cast<int32_t>(procedualModelParameters_.size());
+}
+
+const ProcedualModelParameter* EffectImplemented::GetProcedualModelParameter(int n) const
+{
+	if (n < 0 || n >= GetProcedualModelCount())
+	{
+		return nullptr;
+	}
+
+	return &procedualModelParameters_[n];
+}
+
 void EffectImplemented::SetTexture(int32_t index, TextureType type, TextureData* data)
 {
 	auto textureLoader = GetSetting()->GetTextureLoader();

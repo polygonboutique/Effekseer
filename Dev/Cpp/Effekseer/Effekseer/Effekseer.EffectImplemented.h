@@ -9,6 +9,7 @@
 #include "Effekseer.Effect.h"
 #include "Effekseer.InternalScript.h"
 #include "Effekseer.Vector3D.h"
+#include "Shape/ShapeGenerator.h"
 #include <assert.h>
 #include <memory>
 
@@ -133,6 +134,9 @@ protected:
 	int32_t modelCount_ = 0;
 	EFK_CHAR** modelPaths_ = nullptr;
 	void** models_ = nullptr;
+
+	CustomVector<Model*> procedualModels_;
+	CustomVector<ProcedualModelParameter> procedualModelParameters_;
 
 	int32_t materialCount_ = 0;
 	EFK_CHAR** materialPaths_ = nullptr;
@@ -310,6 +314,13 @@ public:
 	int32_t GetCurveCount() const override;
 
 	const EFK_CHAR* GetCurvePath(int n) const override;
+
+	Model* GetProcedualModel(int n) const override;
+
+	int32_t GetProcedualModelCount() const override;
+
+	const ProcedualModelParameter* GetProcedualModelParameter(int n) const override;
+
 
 	void SetTexture(int32_t index, TextureType type, TextureData* data) override;
 

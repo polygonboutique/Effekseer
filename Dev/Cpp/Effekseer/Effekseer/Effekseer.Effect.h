@@ -436,6 +436,24 @@ public:
 	virtual const EFK_CHAR* GetCurvePath(int n) const = 0;
 
 	/**
+	@brief	\~English	Get a procedual model's pointer
+	\~Japanese	格納されているプロシージャルモデルのポインタを取得する。
+	*/
+	virtual Model* GetProcedualModel(int n) const = 0;
+
+	/**
+	@brief	\~English	Get the number of stored procedual model's pointer
+	\~Japanese	格納されているプロシージャルモデルのポインタの個数を取得する。
+	*/
+	virtual int32_t GetProcedualModelCount() const = 0;
+
+	/**
+	@brief	\~English	Get a procedual model's parameter
+	\~Japanese	格納されているプロシージャルモデルのパラメーターを取得する。
+	*/
+	virtual const ProcedualModelParameter* GetProcedualModelParameter(int n) const = 0;
+
+	/**
 		@brief
 		\~English set texture data into specified index
 		\~Japanese	指定されたインデックスにテクスチャを設定する。

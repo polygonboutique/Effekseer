@@ -14,6 +14,7 @@ file(GLOB effekseer_h
     Effekseer/Noise/*.h
     Effekseer/ForceField/*.h
     Effekseer/Backend/*.h
+    Effekseer/Shape/*.h
 )
 
 set(effekseer_src
