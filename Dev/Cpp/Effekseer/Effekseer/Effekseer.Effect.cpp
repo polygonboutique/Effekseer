@@ -4,6 +4,7 @@
 //
 //----------------------------------------------------------------------------------
 #include "Effekseer.Effect.h"
+#include "Effekseer.CurveLoader.h"
 #include "Effekseer.DefaultEffectLoader.h"
 #include "Effekseer.EffectImplemented.h"
 #include "Effekseer.EffectLoader.h"
@@ -15,8 +16,8 @@
 #include "Effekseer.Setting.h"
 #include "Effekseer.SoundLoader.h"
 #include "Effekseer.TextureLoader.h"
+#include "Model/ProcedualModelParameter.h"
 #include "Utils/Effekseer.BinaryReader.h"
-#include "Effekseer.CurveLoader.h"
 
 #include <array>
 #include <functional>
@@ -48,15 +49,15 @@ static void PathCombine(EFK_CHAR* dst, const EFK_CHAR* src1, const EFK_CHAR* src
 		}
 		memcpy(&dst[len1], src2, len2 * sizeof(EFK_CHAR));
 	}
-    
-    for(int i = 0; i < len1 + len2; i++)
-    {
-        if(dst[i] == u'\\')
-        {
-            dst[i] = u'/';
-        }
-    }
-    
+
+	for (int i = 0; i < len1 + len2; i++)
+	{
+		if (dst[i] == u'\\')
+		{
+			dst[i] = u'/';
+		}
+	}
+
 	dst[len1 + len2] = L'\0';
 }
 
@@ -276,7 +277,7 @@ void EffectFactory::OnLoadingResource(Effect* effect, const void* data, int32_t 
 		{
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, materialPath, effect->GetCurvePath(i));
-			
+
 			auto resource = curveLoader->Load(fullPath);
 			SetCurve(effect, i, resource);
 		}
@@ -1358,7 +1359,7 @@ bool EffectImplemented::Reload(Manager** managers,
 		}
 
 		auto manager = static_cast<ManagerImplemented*>(managers[i]);
-		manager->BeginReloadEffect( this, true);
+		manager->BeginReloadEffect(this, true);
 	}
 
 	// HACK for scale
@@ -1385,7 +1386,7 @@ bool EffectImplemented::Reload(Manager** managers,
 		}
 
 		auto manager = static_cast<ManagerImplemented*>(managers[i]);
-		manager->EndReloadEffect( this, true);
+		manager->EndReloadEffect(this, true);
 	}
 
 	return false;

@@ -9,7 +9,6 @@
 #include "Effekseer.Effect.h"
 #include "Effekseer.InternalScript.h"
 #include "Effekseer.Vector3D.h"
-#include "Shape/ShapeGenerator.h"
 #include <assert.h>
 #include <memory>
 
