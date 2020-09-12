@@ -48,7 +48,7 @@ struct RotatorCylinder
 	}
 };
 
-struct ShapeVertex
+struct ProcedualMeshVertex
 {
 	Vec3f Position;
 	Vec3f Normal;
@@ -56,14 +56,14 @@ struct ShapeVertex
 	Vec2f UV;
 };
 
-struct Shape
+struct ProcedualMesh
 {
-	CustomAlignedVector<ShapeVertex> Vertexes;
+	CustomAlignedVector<ProcedualMeshVertex> Vertexes;
 	CustomVector<int32_t> Indexes;
 };
 
 template <typename T>
-struct RotatorShapeGenerator
+struct RotatorMeshGenerator
 {
 	float AxisValueMin;
 	float AxisValueMax;
@@ -89,12 +89,12 @@ struct RotatorShapeGenerator
 		return Vec3f(rx, y, rz);
 	}
 
-	Shape Generate(int32_t axisDivision, int32_t angleDivision)
+	ProcedualMesh Generate(int32_t axisDivision, int32_t angleDivision)
 	{
 		assert(axisDivision > 1);
 		assert(angleDivision > 1);
 
-		Shape ret;
+		ProcedualMesh ret;
 
 		ret.Vertexes.resize(axisDivision * angleDivision);
 		ret.Indexes.resize((axisDivision - 1) * (angleDivision - 1) * 6);
@@ -116,7 +116,7 @@ template <typename T>
 struct RotatedWireShapeGenerator
 {
 
-	Shape Generate(float angleBegin, float angleEnd, float axisBegin, float axisEnd, int32_t axisDivision, int32_t angleDivision)
+	ProcedualMesh Generate(float angleBegin, float angleEnd, float axisBegin, float axisEnd, int32_t axisDivision, int32_t angleDivision)
 	{
 	}
 };
@@ -130,7 +130,7 @@ public:
 
 	// Rectangle
 
-	ShapeVertex Rectangle(float width, float height, float x, float y)
+	ProcedualMeshVertex Rectangle(float width, float height, float x, float y)
 	{
 	}
 
@@ -145,7 +145,7 @@ public:
 	// Calculate tangent
 };
 
-enum class ShapeType : uint8_t
+enum class ProcedualModelType : uint8_t
 {
 	Sphere,
 	Cone,
@@ -154,7 +154,7 @@ enum class ShapeType : uint8_t
 
 struct ProcedualModelParameter
 {
-	ShapeType Type;
+	ProcedualModelType Type;
 
 	float AngleBegin;
 	float AngleEnd;
@@ -195,7 +195,7 @@ struct ProcedualModelParameter
 			return static_cast<int32_t>(Type) < static_cast<int32_t>(Type);
 		}
 
-		if (Type == ShapeType::Sphere)
+		if (Type == ProcedualModelType::Sphere)
 		{
 			if (Sphere.Radius != rhs.Sphere.Radius)
 				return Sphere.Radius < rhs.Sphere.Radius;
