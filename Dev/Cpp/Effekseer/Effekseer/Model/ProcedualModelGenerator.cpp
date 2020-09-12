@@ -36,7 +36,7 @@ struct RotatorSphere
 	Vec2f GetPosition(float value) const
 	{
 		float axisPos = -Radius + Radius * 2.0f * value;
-		return sqrt(Radius * Radius - axisPos * axisPos);
+		return Vec2f(sqrt(Radius * Radius - axisPos * axisPos), value);
 	}
 };
 
@@ -48,7 +48,7 @@ struct RotatorCone
 	Vec2f GetPosition(float value) const
 	{
 		float axisPos = Length * value;
-		return Radius / Length * axisPos;
+		return Vec2f(Radius / Length * axisPos, value);
 	}
 };
 
@@ -61,7 +61,7 @@ struct RotatorCylinder
 	Vec2f GetPosition(float value) const
 	{
 		float axisPos = Length * value;
-		return (RadiusEnd - RadiusStart) / Length * axisPos + RadiusStart;
+		return Vec2f((RadiusEnd - RadiusStart) / Length * axisPos + RadiusStart, value);
 	}
 };
 
@@ -215,7 +215,7 @@ static void CalcTangentSpace(const ProcedualMeshVertex& v1, const ProcedualMeshV
 	binormal.Normalize();
 }
 
-static void CalculateNormal(const ProcedualMesh& mesh)
+static void CalculateNormal(ProcedualMesh& mesh)
 {
 	CustomAlignedVector<Vec3f> faceNormals;
 	CustomAlignedVector<Vec3f> faceTangents;
@@ -263,8 +263,16 @@ static void CalculateNormal(const ProcedualMesh& mesh)
 	{
 		for (size_t j = 0; j < 3; j++)
 		{
-			// wip
+			normals[mesh.Faces[i].Indexes[j]] = faceNormals[i];
+			tangents[mesh.Faces[i].Indexes[j]] = faceTangents[i];
+			vertexCounts[mesh.Faces[i].Indexes[j]]++;
 		}
+	}
+
+	for (size_t i = 0; i < normals.size(); i++)
+	{
+		mesh.Vertexes[i].Normal = normals[i] / static_cast<float>(vertexCounts[i]);
+		mesh.Vertexes[i].Tangent = tangents[i] / static_cast<float>(vertexCounts[i]);
 	}
 }
 
@@ -308,8 +316,11 @@ Model* ProcedualModelGenerator::Generate(const ProcedualModelParameter* paramete
 	{
 		auto generator = RotatorMeshGenerator<RotatorSphere>();
 		generator.Rotator.Radius = parameter->Sphere.Radius;
-		const auto generated = generator.Generate(parameter->AxisDivision, parameter->AngleDivision);
-		ConvertMeshToModel(generated);
+		auto generated = generator.Generate(parameter->AxisDivision, parameter->AngleDivision);
+
+		CalculateNormal(generated);
+
+		return ConvertMeshToModel(generated);
 	}
 
 	return nullptr;
