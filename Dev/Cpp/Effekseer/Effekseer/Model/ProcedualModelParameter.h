@@ -1,6 +1,7 @@
 #ifndef __EFFEKSEER_PROCEDUAL_MODEL_PARAMETER_H__
 #define __EFFEKSEER_PROCEDUAL_MODEL_PARAMETER_H__
 
+#include "../Utils/Effekseer.BinaryReader.h"
 #include <stdint.h>
 #include <stdio.h>
 
@@ -64,6 +65,14 @@ struct ProcedualModelParameter
 		}
 
 		return false;
+	}
+
+	template<bool T>
+	bool Load(BinaryReader<T>& reader)
+	{
+		Type = reader.Read<decltype(Type)>();
+
+		return true;
 	}
 };
 

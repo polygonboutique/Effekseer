@@ -9,7 +9,7 @@
 namespace Effekseer
 {
 	
-class ProcedualModelGenerator
+class ProcedualModelGenerator : public ReferenceObject
 {
 public:
 	ProcedualModelGenerator() = default;
