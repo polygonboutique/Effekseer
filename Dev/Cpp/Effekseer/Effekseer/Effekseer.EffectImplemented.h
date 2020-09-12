@@ -9,6 +9,8 @@
 #include "Effekseer.Effect.h"
 #include "Effekseer.InternalScript.h"
 #include "Effekseer.Vector3D.h"
+#include "Model/ProcedualModelParameter.h"
+#include "Utils/Effekseer.CustomAllocator.h"
 #include <assert.h>
 #include <memory>
 
@@ -174,7 +176,8 @@ protected:
 		CullingShape Shape;
 		Vector3D Location;
 
-		union {
+		union
+		{
 			struct
 			{
 			} None;
@@ -309,7 +312,7 @@ public:
 	const EFK_CHAR* GetMaterialPath(int n) const override;
 
 	void* GetCurve(int n) const override;
-	
+
 	int32_t GetCurveCount() const override;
 
 	const EFK_CHAR* GetCurvePath(int n) const override;
@@ -319,7 +322,6 @@ public:
 	int32_t GetProcedualModelCount() const override;
 
 	const ProcedualModelParameter* GetProcedualModelParameter(int n) const override;
-
 
 	void SetTexture(int32_t index, TextureType type, TextureData* data) override;
 

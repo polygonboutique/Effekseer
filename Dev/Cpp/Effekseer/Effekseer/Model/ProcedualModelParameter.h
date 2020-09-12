@@ -8,7 +8,7 @@
 namespace Effekseer
 {
 
-enum class ProcedualModelType : uint8_t
+enum class ProcedualModelType : int32_t
 {
 	Sphere,
 	Cone,
@@ -67,10 +67,22 @@ struct ProcedualModelParameter
 		return false;
 	}
 
-	template<bool T>
+	template <bool T>
 	bool Load(BinaryReader<T>& reader)
 	{
 		Type = reader.Read<decltype(Type)>();
+
+		AxisDivision = reader.Read<int32_t>();
+		AngleDivision = reader.Read<int32_t>();
+		AngleBegin = reader.Read<float>();
+		AngleEnd = reader.Read<float>();
+		AxisBegin = reader.Read<float>();
+		AxisEnd = reader.Read<float>();
+
+		if (Type == ProcedualModelType::Sphere)
+		{
+			Radius = reader.Read<float>();			
+		}
 
 		return true;
 	}
