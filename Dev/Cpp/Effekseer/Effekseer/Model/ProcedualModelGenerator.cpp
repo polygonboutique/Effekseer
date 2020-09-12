@@ -168,6 +168,53 @@ struct RotatedWireMeshGenerator
 	}
 };
 
+static void CalcTangentSpace(const ProcedualMeshVertex& v1, const ProcedualMeshVertex& v2, const ProcedualMeshVertex& v3, Vec3f& binormal, Vec3f& tangent)
+{
+	binormal = Vec3f();
+	tangent = Vec3f();
+
+	Vec3f cp0[3];
+	cp0[0] = Vec3f(v1.Position.GetX(), v1.UV.GetX(), v1.UV.GetY());
+	cp0[1] = Vec3f(v1.Position.GetY(), v1.UV.GetX(), v1.UV.GetY());
+	cp0[2] = Vec3f(v1.Position.GetZ(), v1.UV.GetX(), v1.UV.GetY());
+
+	Vec3f cp1[3];
+	cp1[0] = Vec3f(v2.Position.GetX(), v2.UV.GetX(), v2.UV.GetY());
+	cp1[1] = Vec3f(v2.Position.GetY(), v2.UV.GetX(), v2.UV.GetY());
+	cp1[2] = Vec3f(v2.Position.GetZ(), v2.UV.GetX(), v2.UV.GetY());
+
+	Vec3f cp2[3];
+	cp2[0] = Vec3f(v3.Position.GetX(), v3.UV.GetX(), v3.UV.GetY());
+	cp2[1] = Vec3f(v3.Position.GetY(), v3.UV.GetX(), v3.UV.GetY());
+	cp2[2] = Vec3f(v3.Position.GetZ(), v3.UV.GetX(), v3.UV.GetY());
+
+	float u[3];
+	float v[3];
+
+	for (int32_t i = 0; i < 3; i++)
+	{
+		auto v1 = cp1[i] - cp0[i];
+		auto v2 = cp2[i] - cp1[i];
+		auto abc = Vec3f::Cross(v1, v2);
+
+		if (abc.GetX() == 0.0f)
+		{
+			return;
+		}
+		else
+		{
+			u[i] = -abc.GetY() / abc.GetX();
+			v[i] = -abc.GetZ() / abc.GetX();
+		}
+	}
+
+	tangent = Vec3f(u[0], u[1], u[2]);
+	tangent.Normalize();
+
+	binormal = Vec3f(v[0], v[1], v[2]);
+	binormal.Normalize();
+}
+
 static void CalculateNormal(const ProcedualMesh& mesh)
 {
 	CustomAlignedVector<Vec3f> faceNormals;
@@ -176,9 +223,48 @@ static void CalculateNormal(const ProcedualMesh& mesh)
 	faceNormals.resize(mesh.Faces.size());
 	faceTangents.resize(mesh.Faces.size());
 
-	for (size_t i = 0; mesh.Faces.size(); i++)
+	for (size_t i = 0; i < faceNormals.size(); i++)
 	{
-		// TODO
+		faceNormals[i] = Vec3f(0.0f, 0.0f, 0.0f);
+		faceTangents[i] = Vec3f(0.0f, 0.0f, 0.0f);
+	}
+
+	for (size_t i = 0; i < mesh.Faces.size(); i++)
+	{
+		const auto& v1 = mesh.Vertexes[mesh.Faces[i].Indexes[0]];
+		const auto& v2 = mesh.Vertexes[mesh.Faces[i].Indexes[1]];
+		const auto& v3 = mesh.Vertexes[mesh.Faces[i].Indexes[2]];
+		const auto normal = Vec3f::Cross(v3.Position - v1.Position, v2.Position - v1.Position).Normalize();
+
+		faceNormals[i] = normal;
+		Vec3f binotmal;
+		Vec3f tangent;
+
+		CalcTangentSpace(v1, v2, v3, binotmal, tangent);
+
+		faceTangents[i] = tangent;
+	}
+
+	CustomAlignedVector<Vec3f> normals;
+	CustomAlignedVector<Vec3f> tangents;
+	CustomVector<int32_t> vertexCounts;
+
+	normals.resize(mesh.Vertexes.size());
+	tangents.resize(mesh.Vertexes.size());
+	vertexCounts.resize(mesh.Vertexes.size());
+
+	for (size_t i = 0; i < normals.size(); i++)
+	{
+		normals[i] = Vec3f(0.0f, 0.0f, 0.0f);
+		tangents[i] = Vec3f(0.0f, 0.0f, 0.0f);
+	}
+
+	for (size_t i = 0; i < mesh.Faces.size(); i++)
+	{
+		for (size_t j = 0; j < 3; j++)
+		{
+			// wip
+		}
 	}
 }
 
