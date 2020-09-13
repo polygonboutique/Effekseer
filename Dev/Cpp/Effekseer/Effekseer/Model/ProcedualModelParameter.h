@@ -70,18 +70,17 @@ struct ProcedualModelParameter
 	template <bool T>
 	bool Load(BinaryReader<T>& reader)
 	{
-		Type = reader.Read<decltype(Type)>();
-
-		AxisDivision = reader.Read<int32_t>();
-		AngleDivision = reader.Read<int32_t>();
-		AngleBegin = reader.Read<float>();
-		AngleEnd = reader.Read<float>();
-		AxisBegin = reader.Read<float>();
-		AxisEnd = reader.Read<float>();
+		reader.Read(Type);
+		reader.Read(AxisDivision);
+		reader.Read(AngleDivision);
+		reader.Read(AngleBegin);
+		reader.Read(AngleEnd);
+		reader.Read(AxisBegin);
+		reader.Read(AxisEnd);
 
 		if (Type == ProcedualModelType::Sphere)
 		{
-			Radius = reader.Read<float>();			
+			reader.Read(Sphere.Radius);
 		}
 
 		return true;
