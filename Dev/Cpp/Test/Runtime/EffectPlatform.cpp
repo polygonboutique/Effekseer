@@ -15,12 +15,15 @@ void EffectPlatform::CreateCheckeredPattern(int width, int height, uint32_t* pix
 	}
 }
 
-EffekseerRenderer::Renderer* EffectPlatform::GetRenderer() const { return renderer_; }
+EffekseerRenderer::Renderer* EffectPlatform::GetRenderer() const
+{
+	return renderer_;
+}
 
 EffectPlatform::EffectPlatform()
 {
-	checkeredPattern_.resize(1280 * 720);
-	CreateCheckeredPattern(1280, 720, checkeredPattern_.data());
+	checkeredPattern_.resize(WindowWidth * WindowHeight);
+	CreateCheckeredPattern(WindowWidth, WindowHeight, checkeredPattern_.data());
 }
 
 EffectPlatform::~EffectPlatform()
@@ -41,7 +44,7 @@ void EffectPlatform::Initialize(const EffectPlatformInitializingParameter& param
 
 	InitializeDevice(param);
 
-	manager_ = ::Effekseer::Manager::Create(8000);
+	manager_ = ::Effekseer::Manager::Create(param.InstanceCount);
 
 	renderer_ = CreateRenderer();
 
@@ -53,11 +56,12 @@ void EffectPlatform::Initialize(const EffectPlatformInitializingParameter& param
 	if (isOpenGLMode_)
 	{
 		renderer_->SetProjectionMatrix(
-			::Effekseer::Matrix44().PerspectiveFovRH_OpenGL(90.0f / 180.0f * 3.14f, 1280.0f / 720.0f, 1.0f, 50.0f));
+			::Effekseer::Matrix44().PerspectiveFovRH_OpenGL(90.0f / 180.0f * 3.14f, (float)WindowWidth / (float)WindowHeight, 1.0f, 50.0f));
 	}
 	else
 	{
-		renderer_->SetProjectionMatrix(::Effekseer::Matrix44().PerspectiveFovRH(90.0f / 180.0f * 3.14f, 1280.0f / 720.0f, 1.0f, 50.0f));
+		renderer_->SetProjectionMatrix(
+			::Effekseer::Matrix44().PerspectiveFovRH(90.0f / 180.0f * 3.14f, (float)WindowWidth / (float)WindowHeight, 1.0f, 50.0f));
 	}
 
 	manager_->SetSpriteRenderer(renderer_->CreateSpriteRenderer());
@@ -71,6 +75,11 @@ void EffectPlatform::Initialize(const EffectPlatformInitializingParameter& param
 	manager_->SetTextureLoader(renderer_->CreateTextureLoader());
 	manager_->SetModelLoader(renderer_->CreateModelLoader());
 	manager_->SetMaterialLoader(renderer_->CreateMaterialLoader());
+
+	if (param.IsCullingCreated)
+	{
+		manager_->CreateCullingWorld(100.0f, 100.0f, 100.0f, 6);
+	}
 
 	isInitialized_ = true;
 }
@@ -109,17 +118,19 @@ Effekseer::Handle EffectPlatform::Play(const char16_t* path, int32_t startFrame)
 	// reset time
 	time_ = 0;
 
+	int8_t path8[256];
+	Effekseer::ConvertUtf16ToUtf8(path8, 256, (const int16_t*)path);
+
 	FILE* filePtr = NULL;
 #ifdef _WIN32
 	_wfopen_s(&filePtr, (const wchar_t*)path, L"rb");
 #else
-	int8_t path8[256];
-	Effekseer::ConvertUtf16ToUtf8(path8, 256, (const int16_t*)path);
 	filePtr = fopen((const char*)path8, "rb");
 #endif
 
 	if (filePtr == nullptr)
 	{
+		printf("Failed to load %s./n", path8);
 		assert(0);
 	}
 
@@ -178,6 +189,24 @@ bool EffectPlatform::Update()
 	Present();
 
 	time_ += 1.0f / 60.0f;
+
+	return true;
+}
+
+bool EffectPlatform::Draw() {
+	if (!DoEvent())
+		return false;
+
+	BeginRendering();
+
+	renderer_->SetTime(time_);
+	renderer_->BeginRendering();
+	manager_->Draw();
+	renderer_->EndRendering();
+
+	EndRendering();
+
+	Present();
 
 	return true;
 }

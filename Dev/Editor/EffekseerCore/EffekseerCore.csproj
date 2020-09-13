@@ -82,6 +82,8 @@
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.4.5.2\lib\netstandard1.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
@@ -97,6 +99,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Binary\AlphaCutoffValues.cs" />
     <Compile Include="Binary\CommonValues.cs" />
     <Compile Include="Binary\GenerationLocationValues.cs" />
     <Compile Include="Binary\RendererValues.cs" />
@@ -112,6 +115,8 @@
     <Compile Include="Command\DelegateCommand.cs" />
     <Compile Include="Command\ICommand.cs" />
     <Compile Include="Core.cs" />
+    <Compile Include="Data\AdvancedRenderCommonValues.cs" />
+    <Compile Include="Data\AdvancedRenderCommonValues2.cs" />
     <Compile Include="Data\DepthValues.cs" />
     <Compile Include="Data\Dynamic.cs" />
     <Compile Include="Data\EffectCullingValues.cs" />
@@ -147,6 +152,7 @@
     <Compile Include="Data\Value\FCurveVector3D.cs" />
     <Compile Include="Data\Value\Float.cs" />
     <Compile Include="Data\Value\FloatWithRandom.cs" />
+    <Compile Include="Data\Value\PathForCurve.cs" />
     <Compile Include="Data\Value\PathForImage.cs" />
     <Compile Include="Data\Value\Int.cs" />
     <Compile Include="Data\Value\IntWithInifinite.cs" />
@@ -170,11 +176,13 @@
     <Compile Include="InternalScript\Lexer.cs" />
     <Compile Include="InternalScript\Parser.cs" />
     <Compile Include="InternalScript\SSAGenerator.cs" />
-    <Compile Include="InternalScript\Tests.cs" />
     <Compile Include="IO\EfkEfc.cs" />
+    <Compile Include="IO\EfkPkg.cs" />
     <Compile Include="Utils\BinaryWriter.cs" />
     <Compile Include="Utils\CsvReader.cs" />
+    <Compile Include="Utils\Logger.cs" />
     <Compile Include="Utils\Misc.cs" />
+    <Compile Include="Utils\ProjectVersionUpdater.cs" />
     <Compile Include="Utils\ResourceCache.cs" />
     <Compile Include="Utils\Zlib.cs" />
     <Compile Include="Utl\BinaryReader.cs" />

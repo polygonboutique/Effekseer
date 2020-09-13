@@ -442,6 +442,8 @@ namespace Effekseer.GUI
 			ViewMode_OnChanged(null, null);
 			Core.Option.ViewerMode.OnChanged += ViewMode_OnChanged;
 
+			Core.Option.RenderingMode.OnChanged += RenderingMode_OnChanged;
+
 			Bloom_OnChanged(null, null);
 			Core.Environment.PostEffect.BloomSwitch.OnChanged += Bloom_OnChanged;
 			Core.Environment.PostEffect.Bloom.Intensity.OnChanged += Bloom_OnChanged;
@@ -453,6 +455,11 @@ namespace Effekseer.GUI
 			Core.Environment.PostEffect.TonemapReinhard.Exposure.OnChanged += Tonemap_OnChanged;
 			
 			return true;
+		}
+
+		private void RenderingMode_OnChanged(object sender, ChangedValueEventArgs e)
+		{
+			SetRenderMode((int)Core.Option.RenderingMode.Value);
 		}
 
 		public void HideViewer()
@@ -708,11 +715,11 @@ namespace Effekseer.GUI
 			}
 
 			var binaryExporter = new Binary.Exporter();
-			var data = binaryExporter.Export(Core.Option.Magnification);
+			var data = binaryExporter.Export(Core.Root, Core.Option.Magnification);
 			fixed (byte* p = &data[0])
 			{
 				// TODO refactor replace
-				LoadEffect(new IntPtr(p), data.Length, Core.FullPath.Replace('\\', '/'));
+				LoadEffect(new IntPtr(p), data.Length, Core.Root.GetFullPath().Replace('\\', '/'));
 			}
 		}
 
@@ -842,9 +849,9 @@ namespace Effekseer.GUI
 				param.AngleX = 30.0f;
 				param.AngleY = -30.0f;
 				Manager.Viewer.SetViewerParamater(param);
-				Core.Option.IsXYGridShown.Value = false;
-				Core.Option.IsXZGridShown.Value = true;
-				Core.Option.IsYZGridShown.Value = false;
+				Core.Option.IsXYGridShown.SetValueDirectly(false);
+				Core.Option.IsXZGridShown.SetValueDirectly(true);
+				Core.Option.IsYZGridShown.SetValueDirectly(false);
 			}
 			else if (viewerMode == Data.OptionValues.ViewMode._2D)
 			{
@@ -858,9 +865,9 @@ namespace Effekseer.GUI
 				param.AngleX = 0.0f;
 				param.AngleY = 0.0f;
 				Manager.Viewer.SetViewerParamater(param);
-				Core.Option.IsXYGridShown.Value = true;
-				Core.Option.IsXZGridShown.Value = false;
-				Core.Option.IsYZGridShown.Value = false;
+				Core.Option.IsXYGridShown.SetValueDirectly(true);
+				Core.Option.IsXZGridShown.SetValueDirectly(false);
+				Core.Option.IsYZGridShown.SetValueDirectly(false);
 			}
 		}
 

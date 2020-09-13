@@ -11,8 +11,8 @@ namespace EffekseerRendererDX12
 }
 
 #endif
-#ifndef	__EFFEKSEERRENDERER_RENDERER_H__
-#define	__EFFEKSEERRENDERER_RENDERER_H__
+#ifndef __EFFEKSEERRENDERER_RENDERER_H__
+#define __EFFEKSEERRENDERER_RENDERER_H__
 
 //----------------------------------------------------------------------------------
 // Include
@@ -22,6 +22,17 @@ namespace EffekseerRendererDX12
 //-----------------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------------
+
+namespace Effekseer
+{
+namespace Backend
+{
+class VertexBuffer;
+class IndexBuffer;
+class GraphicsDevice;
+} // namespace Backend
+} // namespace Effekseer
+
 namespace EffekseerRenderer
 {
 //-----------------------------------------------------------------------------------
@@ -34,14 +45,21 @@ namespace EffekseerRenderer
 class DistortingCallback
 {
 public:
-	DistortingCallback() {}
-	virtual ~DistortingCallback() {}
+	DistortingCallback()
+	{
+	}
+	virtual ~DistortingCallback()
+	{
+	}
 
-	virtual bool OnDistorting() { return false; }
+	virtual bool OnDistorting()
+	{
+		return false;
+	}
 };
 
 /**
-	@brief	
+	@brief
 	\~english A status of UV when particles are rendered.
 	\~japanese パーティクルを描画する時のUVの状態
 */
@@ -72,8 +90,8 @@ class GraphicsDevice : public ::Effekseer::IReference
 public:
 	GraphicsDevice() = default;
 	virtual ~GraphicsDevice() = default;
-};	
-	
+};
+
 class CommandList : public ::Effekseer::IReference
 {
 public:
@@ -92,11 +110,12 @@ public:
 		\~English	notify that new frame is started.
 		\~Japanese	新規フレームが始ったことを通知する。
 	*/
-	virtual void NewFrame() {}
+	virtual void NewFrame()
+	{
+	}
 };
 
-class Renderer
-	: public ::Effekseer::IReference
+class Renderer : public ::Effekseer::IReference
 {
 protected:
 	Renderer();
@@ -106,7 +125,6 @@ protected:
 	Impl* impl = nullptr;
 
 public:
-
 	/**
 		@brief	only for Effekseer backend developer. Effekseer User doesn't need it.
 	*/
@@ -185,7 +203,7 @@ public:
 	/**
 		@brief	Set a projection matrix
 	*/
-	virtual void SetProjectionMatrix( const ::Effekseer::Matrix44& mat );
+	virtual void SetProjectionMatrix(const ::Effekseer::Matrix44& mat);
 
 	/**
 		@brief	Get a camera matrix
@@ -195,7 +213,7 @@ public:
 	/**
 		@brief	Set a camera matrix
 	*/
-	virtual void SetCameraMatrix( const ::Effekseer::Matrix44& mat );
+	virtual void SetCameraMatrix(const ::Effekseer::Matrix44& mat);
 
 	/**
 		@brief	Get a camera projection matrix
@@ -218,7 +236,7 @@ public:
 
 	/**
 		@brief	Set a front direction and position of camera manually
-		@param front (Right Hand) a direction from focus to eye, (Left Hand) a direction from eye to focus, 
+		@param front (Right Hand) a direction from focus to eye, (Left Hand) a direction from eye to focus,
 		@note
 		These are set based on camera matrix automatically.
 		It is failed on some platform.
@@ -253,15 +271,15 @@ public:
 	/**
 		@brief	標準のテクスチャ読込クラスを生成する。
 	*/
-	virtual ::Effekseer::TextureLoader* CreateTextureLoader( ::Effekseer::FileInterface* fileInterface = NULL ) = 0;
+	virtual ::Effekseer::TextureLoader* CreateTextureLoader(::Effekseer::FileInterface* fileInterface = NULL) = 0;
 
 	/**
 		@brief	標準のモデル読込クラスを生成する。
 	*/
-	virtual ::Effekseer::ModelLoader* CreateModelLoader( ::Effekseer::FileInterface* fileInterface = NULL ) = 0;
+	virtual ::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface = NULL) = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english Create default material loader
 	\~japanese 標準のマテリアル読込クラスを生成する。
 
@@ -284,7 +302,7 @@ public:
 	virtual void SetDistortingCallback(DistortingCallback* callback) = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english Get draw call count
 	\~japanese ドローコールの回数を取得する
 	*/
@@ -319,7 +337,7 @@ public:
 	virtual Effekseer::RenderMode GetRenderMode() const;
 
 	/**
-	@brief	
+	@brief
 	\~english Specify a render mode.
 	\~japanese 描画モードを設定する。
 	*/
@@ -372,7 +390,9 @@ public:
 	\~English	specify a command list to render.  This function is available except DirectX9, DirectX11 and OpenGL.
 	\~Japanese	描画に使用するコマンドリストを設定する。この関数はDirectX9、DirectX11、OpenGL以外で使用できる。
 	*/
-	virtual void SetCommandList(CommandList* commandList) {}
+	virtual void SetCommandList(CommandList* commandList)
+	{
+	}
 
 	/**
 	@brief
@@ -389,24 +409,62 @@ public:
 	\~English	Create a proxy texture
 	\~Japanese	代替のテクスチャを生成する
 	*/
-	virtual Effekseer::TextureData* CreateProxyTexture(ProxyTextureType type) { return nullptr; }
+	virtual Effekseer::TextureData* CreateProxyTexture(ProxyTextureType type)
+	{
+		return nullptr;
+	}
 
 	/**
 	@brief
 	\~English	Delete a proxy texture
 	\~Japanese	代替のテクスチャを削除する
 	*/
-	virtual void DeleteProxyTexture(Effekseer::TextureData* data) { }
+	virtual void DeleteProxyTexture(Effekseer::TextureData* data)
+	{
+	}
+};
+
+/**
+@brief	\~English	Model
+		\~Japanese	モデル
+*/
+class Model : public Effekseer::Model
+{
+private:
+public:
+	struct InternalModel
+	{
+		Effekseer::Backend::VertexBuffer* VertexBuffer;
+		Effekseer::Backend::IndexBuffer* IndexBuffer;
+		int32_t VertexCount;
+		int32_t IndexCount;
+		int32_t FaceCount;
+
+		InternalModel();
+		~InternalModel();
+	};
+
+	Effekseer::Backend::GraphicsDevice* graphicsDevice_ = nullptr;
+	InternalModel* InternalModels = nullptr;
+	int32_t ModelCount;
+
+	Model(uint8_t* data, int32_t size, int maximumModelCount, Effekseer::Backend::GraphicsDevice* graphicsDevice);
+
+	~Model() override;
+
+	bool LoadToGPU();
+
+	bool IsLoadedOnGPU = false;
 };
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
+} // namespace EffekseerRenderer
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-#endif	// __EFFEKSEERRENDERER_RENDERER_H__
+#endif // __EFFEKSEERRENDERER_RENDERER_H__
 
 #ifndef __EFFEKSEERRENDERER_DX12_RENDERER_H__
 #define __EFFEKSEERRENDERER_DX12_RENDERER_H__
@@ -418,25 +476,41 @@ namespace EffekseerRendererDX12
 
 ::EffekseerRenderer::GraphicsDevice* CreateDevice(ID3D12Device* device, ID3D12CommandQueue* commandQueue, int32_t swapBufferCount);
 
+/**
+	@brief	Create an instance
+	@param	graphicsDevice	Effekseer graphics device
+	@param	renderTargetFormats	Rendered screen formats
+	@param	renderTargetCount	The number of render target
+	@param	depthFormat	Rendered screen depth format. If depth doesn't exists, it must be DXGI_FORMAT_UNKNOWN
+	@param	isReversedDepth	Whether depth is reversed.
+	@param	squareMaxCount	The number of maximum sprites
+	@return	instance
+*/
 ::EffekseerRenderer::Renderer* Create(::EffekseerRenderer::GraphicsDevice* graphicsDevice,
 									  DXGI_FORMAT* renderTargetFormats,
 									  int32_t renderTargetCount,
-									  bool hasDepth,
+									  DXGI_FORMAT depthFormat,
 									  bool isReversedDepth,
 									  int32_t squareMaxCount);
 
 /**
-@brief	Create an instance
-@param	device			directX12 device
-@param int32_t	the number of maximum sprites
-@return	instance
+	@brief	Create an instance
+	@param	device	directX12 device
+	@param	commandQueue directX12 commandQueue
+	@param	swapBufferCount	The number of swapBufferCount
+	@param	renderTargetFormats	Rendered screen formats
+	@param	renderTargetCount	The number of render target
+	@param	depthFormat	Rendered screen depth format. If depth doesn't exists, it must be DXGI_FORMAT_UNKNOWN
+	@param	isReversedDepth	Whether depth is reversed.
+	@param	squareMaxCount	The number of maximum sprites
+	@return	instance
 */
 ::EffekseerRenderer::Renderer* Create(ID3D12Device* device,
 									  ID3D12CommandQueue* commandQueue,
 									  int32_t swapBufferCount,
 									  DXGI_FORMAT* renderTargetFormats,
 									  int32_t renderTargetCount,
-									  bool hasDepth,
+									  DXGI_FORMAT depthFormat,
 									  bool isReversedDepth,
 									  int32_t squareMaxCount);
 

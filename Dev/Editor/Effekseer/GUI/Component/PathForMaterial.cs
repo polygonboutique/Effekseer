@@ -85,6 +85,8 @@ namespace Effekseer.GUI.Component
 
 			if (binding == null) return;
 
+			string dd = null;
+
 			float buttonSizeX = Manager.NativeManager.GetTextLineHeightWithSpacing() * 2;
 
 			if (Manager.NativeManager.Button(Resources.GetString("Load") + id1, buttonSizeX))
@@ -92,12 +94,16 @@ namespace Effekseer.GUI.Component
 				btn_load_Click();
 			}
 
+			if (dd == null) dd = DragAndDrops.UpdateFileDst(DragAndDrops.FileType.Material);
+
 			isHovered = isHovered || Manager.NativeManager.IsItemHovered();
 
 			Manager.NativeManager.SameLine();
 
 			// show path
 			Manager.NativeManager.Text(relativeFilePath);
+
+			if (dd == null) dd = DragAndDrops.UpdateFileDst(DragAndDrops.FileType.Material);
 
 			if (Manager.NativeManager.IsItemHovered())
 			{
@@ -183,6 +189,20 @@ namespace Effekseer.GUI.Component
 					Manager.NativeManager.SetTooltip(Resources.GetString("Material_Create_Desc"));
 				}
 			}
+
+			if (dd != null)
+			{
+				Dropped(dd);
+			}
+		}
+
+		public void Dropped(string path)
+		{
+			if (CheckExtension(path))
+			{
+				LoadFile(path);
+				Read();
+			}
 		}
 
 		private void btn_load_Click()
@@ -251,7 +271,7 @@ namespace Effekseer.GUI.Component
 
 		private bool CheckExtension(string path)
 		{
-			var filters = binding.Filter.Split(',');
+			var filters = Resources.GetString("MaterialFilter").Split(',');
 			return filters.Any(_ => "." + _ == System.IO.Path.GetExtension(path).ToLower());
 		}
 

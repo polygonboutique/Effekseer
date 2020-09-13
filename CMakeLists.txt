@@ -13,7 +13,7 @@ option(BUILD_VIEWER "Build viewer" OFF)
 option(BUILD_EDITOR "Build editor" OFF)
 option(BUILD_TEST "Build test" OFF)
 option(BUILD_EXAMPLES "Build examples" ON)
-option(BUILD_VERSION16 "is built as version1.6" OFF)
+option(BUILD_VERSION17 "is built as version1.7" OFF)
 option(BUILD_UNITYPLUGIN "is built as unity plugin" OFF)
 option(FROM_CI "from ci" OFF)
 option(SANITIZE_ENABLED "is sanitizer enabled" OFF)
@@ -33,6 +33,8 @@ if (APPLE)
 else()
     option(BUILD_METAL "Build metal modules" OFF)
 endif()
+
+include(cmake/ClangFormat.cmake)
 
 if (BUILD_VIEWER)
     set(USE_LIBPNG_LOADER ON)
@@ -54,7 +56,9 @@ endif()
 # endif()
 
 if(BUILD_VULKAN)
-    set(BUILD_VULKAN_COMPILER ON)
+    set(BUILD_VULKAN ON CACHE BOOL "For LLGI" FORCE)
+    set(BUILD_VULKAN_COMPILER ON CACHE BOOL "For LLGI" FORCE)
+    add_definitions(-D__EFFEKSEER_BUILD_VULKAN__)
 endif()
 
 if (BUILD_DX12)
@@ -62,7 +66,7 @@ if (BUILD_DX12)
 endif()
 
 if (BUILD_VERSION16)
-    add_definitions(-D__EFFEKSEER_BUILD_VERSION16__)
+    add_definitions(-D__EFFEKSEER_BUILD_VERSION17__)
 endif()
 
 # for linux
@@ -77,6 +81,45 @@ if(CMAKE_GENERATOR MATCHES "Visual Studio|Xcode")
     set(BUILD_WITH_POSTFIX ON)
 else()
     set(BUILD_WITH_POSTFIX OFF)
+endif()
+
+if(BUILD_VULKAN)
+    # TODO : Improve it
+
+    option(USE_EXTERNAL_GLSLANG "Whether do it compile with external glslang" OFF)
+
+    if(USE_EXTERNAL_GLSLANG)
+        option(GLSLANG_INCLUDE_DIR "A directory which contains glslang includes" "")
+    else()
+
+        # Hack for GLSLANG
+        if (MSVC)
+    	    if (NOT USE_MSVC_RUNTIME_LIBRARY_DLL)
+    		    foreach (flag CMAKE_C_FLAGS
+    			    CMAKE_C_FLAGS_DEBUG
+    			    CMAKE_C_FLAGS_RELEASE
+    			    CMAKE_CXX_FLAGS
+    			    CMAKE_CXX_FLAGS_DEBUG
+    			    CMAKE_CXX_FLAGS_RELEASE)
+    
+    			    if (${flag} MATCHES "/MD")
+    				    string(REGEX REPLACE "/MD" "/MT" ${flag} "${${flag}}")
+    			    endif()
+    			    if (${flag} MATCHES "/MDd")
+    				    string(REGEX REPLACE "/MDd" "/MTd" ${flag} "${${flag}}")
+        			endif()
+        		endforeach()
+    	    endif()
+        endif()
+
+        set(ENABLE_HLSL OFF CACHE BOOL "For glslang" FORCE)
+        set(ENABLE_CTEST OFF CACHE BOOL "For glslang" FORCE)
+        set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "For glslang" FORCE)
+
+        set(GLSLANG_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Dev/Cpp/3rdParty/glslang/" "${CMAKE_CURRENT_SOURCE_DIR}/Dev/Cpp/3rdParty/")
+        add_subdirectory(Dev/Cpp/3rdParty/glslang/)
+
+    endif()
 endif()
 
 if(BUILD_VIEWER)
@@ -146,7 +189,7 @@ if(BUILD_VIEWER)
         set(LIBPNG_LIB_DEBUG "libpng16_staticd")
         set(LIBPNG_LIB_RELEASE "libpng16_static")
     elseif(BUILD_WITH_POSTFIX)
-        set(LIBPNG_LIB_DEBUG "png16")
+        set(LIBPNG_LIB_DEBUG "png16d")
         set(LIBPNG_LIB_RELEASE "png16")
     else()
         set(LIBPNG_LIB_DEBUG "png16")
@@ -186,7 +229,7 @@ if(BUILD_VIEWER)
     list(APPEND EFK_THIRDPARTY_LIBRARY_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/ThirdParty/Install/libgd/lib)
     
     # glew
-    if(NOT APPLE)
+    if(WIN32)
     ExternalProject_Add(
         ExternalProject_glew
         URL https://sourceforge.net/projects/glew/files/glew/1.13.0/glew-1.13.0.zip
@@ -222,7 +265,7 @@ if(BUILD_VIEWER)
     list(APPEND EFK_THIRDPARTY_LIBRARY_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/ThirdParty/Install/OpenSoundMixer/lib)
 endif()
     
-if(BUILD_VIEWER OR BUILD_EXAMPLES)
+if(BUILD_VIEWER OR BUILD_EXAMPLES OR BUILD_TEST)
     # glfw
     ExternalProject_Add(
         ExternalProject_glfw
@@ -272,6 +315,9 @@ include(FilterFolder)
 add_subdirectory(Dev)
 
 if(BUILD_EXAMPLES)
+    # To use glfw in OpenGL projects
+    add_dependencies(EffekseerRendererGL ExternalProject_glfw)
+
     set(EFK_RUNTIME_ROOT ${CMAKE_CURRENT_LIST_DIR}/Dev/Cpp)
     add_subdirectory(Examples)
 endif()

@@ -29,41 +29,9 @@
 namespace Effekseer
 {
 
-LocalForceFieldTurbulenceParameter::LocalForceFieldTurbulenceParameter(int32_t seed, float scale, float strength, int octave) : Noise(seed)
+bool operator==(const TranslationParentBindType& lhs, const BindType& rhs)
 {
-	Noise.Octave = octave;
-	Noise.Scale = scale;
-	Strength = strength;
-}
-
-bool LocalForceFieldParameter::Load(uint8_t*& pos, int32_t version)
-{
-	auto br = BinaryReader<false>(pos, std::numeric_limits<int>::max());
-
-	LocalForceFieldType type{};
-	br.Read(type);
-
-	if (type == LocalForceFieldType::Turbulence)
-	{
-		int32_t seed{};
-		float scale{};
-		float strength{};
-		int octave{};
-
-		br.Read(seed);
-		br.Read(scale);
-		br.Read(strength);
-		br.Read(octave);
-
-		scale = 1.0f / scale;
-
-		Turbulence =
-			std::unique_ptr<LocalForceFieldTurbulenceParameter>(new LocalForceFieldTurbulenceParameter(seed, scale, strength, octave));
-	}
-
-	pos += br.GetOffset();
-
-	return true;
+	return (lhs == static_cast<TranslationParentBindType>(rhs));
 }
 
 //----------------------------------------------------------------------------------
@@ -161,7 +129,8 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 			pos += size;
 
 			CommonValues.MaxGeneration = param_8.MaxGeneration;
-			CommonValues.TranslationBindType = param_8.TranslationBindType;
+			CommonValues.TranslationBindType = static_cast<TranslationParentBindType>(param_8.TranslationBindType);
+
 			CommonValues.RotationBindType = param_8.RotationBindType;
 			CommonValues.ScalingBindType = param_8.ScalingBindType;
 			CommonValues.RemoveWhenLifeIsExtinct = param_8.RemoveWhenLifeIsExtinct;
@@ -172,6 +141,16 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 			CommonValues.GenerationTime.min = param_8.GenerationTime;
 			CommonValues.GenerationTimeOffset.max = param_8.GenerationTimeOffset;
 			CommonValues.GenerationTimeOffset.min = param_8.GenerationTimeOffset;
+		}
+
+		if (ef->GetVersion() >= 1600)
+		{
+			if (CommonValues.TranslationBindType == TranslationParentBindType::NotBind_FollowParent ||
+				CommonValues.TranslationBindType == TranslationParentBindType::WhenCreating_FollowParent)
+			{
+				memcpy(&SteeringBehaviorParam, pos, sizeof(SteeringBehaviorParameter));
+				pos += sizeof(SteeringBehaviorParameter);
+			}
 		}
 
 		memcpy(&TranslationType, pos, sizeof(int));
@@ -223,19 +202,8 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 		{
 			memcpy(&size, pos, sizeof(int));
 			pos += sizeof(int);
-
-			if (ef->GetVersion() >= 14)
-			{
-				assert(size == sizeof(ParameterTranslationEasing));
-				memcpy(&TranslationEasing, pos, size);
-				pos += size;
-			}
-			else
-			{
-				assert(size == sizeof(easing_vector3d));
-				memcpy(&TranslationEasing.location, pos, size);
-				pos += size;
-			}
+			TranslationEasing.Load(pos, size, ef->GetVersion());
+			pos += size;
 		}
 		else if (TranslationType == ParameterTranslationType_FCurve)
 		{
@@ -244,6 +212,16 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 
 			TranslationFCurve = new FCurveVector3D();
 			pos += TranslationFCurve->Load(pos, m_effect->GetVersion());
+		}
+		else if (TranslationType == ParameterTranslationType_NurbsCurve)
+		{
+			memcpy(&TranslationNurbsCurve, pos, sizeof(ParameterTranslationNurbsCurve));
+			pos += sizeof(ParameterTranslationNurbsCurve);
+		}
+		else if (TranslationType == ParameterTranslationType_ViewOffset)
+		{
+			memcpy(&TranslationViewOffset, pos, sizeof(ParameterTranslationViewOffset));
+			pos += sizeof(ParameterTranslationViewOffset);
 		}
 
 		/* 位置拡大処理 */
@@ -268,10 +246,10 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 			}
 			else if (TranslationType == ParameterTranslationType_Easing)
 			{
-				TranslationEasing.location.start.min *= m_effect->GetMaginification();
-				TranslationEasing.location.start.max *= m_effect->GetMaginification();
-				TranslationEasing.location.end.min *= m_effect->GetMaginification();
-				TranslationEasing.location.end.max *= m_effect->GetMaginification();
+				TranslationEasing.start.min *= m_effect->GetMaginification();
+				TranslationEasing.start.max *= m_effect->GetMaginification();
+				TranslationEasing.end.min *= m_effect->GetMaginification();
+				TranslationEasing.end.max *= m_effect->GetMaginification();
 			}
 			else if (TranslationType == ParameterTranslationType_FCurve)
 			{
@@ -284,14 +262,18 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 		// Local force field
 		if (ef->GetVersion() >= 1500)
 		{
+#ifdef OLD_LF
 			int32_t count = 0;
 			memcpy(&count, pos, sizeof(int));
 			pos += sizeof(int);
 
 			for (int32_t i = 0; i < count; i++)
 			{
-				LocalForceFields[i].Load(pos, ef->GetVersion());
+				LocalForceFieldsOld[i].Load(pos, ef->GetVersion());
 			}
+#else
+			LocalForceField.Load(pos, ef->GetVersion());
+#endif
 		}
 
 		memcpy(&LocationAbs.type, pos, sizeof(int));
@@ -388,17 +370,7 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 		{
 			memcpy(&size, pos, sizeof(int));
 			pos += sizeof(int);
-			if (ef->GetVersion() >= 14)
-			{
-				assert(size == sizeof(RotationEasing));
-				memcpy(&RotationEasing, pos, size);
-			}
-			else
-			{
-				assert(size == sizeof(easing_vector3d));
-				memcpy(&RotationEasing.rotation, pos, size);
-			}
-
+			RotationEasing.Load(pos, size, ef->GetVersion());
 			pos += size;
 		}
 		else if (RotationType == ParameterRotationType_AxisPVA)
@@ -473,15 +445,7 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 		{
 			memcpy(&size, pos, sizeof(int));
 			pos += sizeof(int);
-			if (ef->GetVersion() >= 14)
-			{
-				assert(size == sizeof(ParameterScalingEasing));
-				memcpy(&ScalingEasing, pos, size);
-			}
-			else
-			{
-				memcpy(&ScalingEasing.Position, pos, size);
-			}
+			ScalingEasing.Load(pos, size, ef->GetVersion());
 			pos += size;
 		}
 		else if (ScalingType == ParameterScalingType_SinglePVA)
@@ -619,10 +583,10 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 			}
 			else if (TranslationType == ParameterTranslationType_Easing)
 			{
-				TranslationEasing.location.start.max.z *= -1.0f;
-				TranslationEasing.location.start.min.z *= -1.0f;
-				TranslationEasing.location.end.max.z *= -1.0f;
-				TranslationEasing.location.end.min.z *= -1.0f;
+				TranslationEasing.start.max.z *= -1.0f;
+				TranslationEasing.start.min.z *= -1.0f;
+				TranslationEasing.end.max.z *= -1.0f;
+				TranslationEasing.end.min.z *= -1.0f;
 			}
 
 			// Rotation
@@ -651,14 +615,14 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 			}
 			else if (RotationType == ParameterRotationType_Easing)
 			{
-				RotationEasing.rotation.start.max.x *= -1.0f;
-				RotationEasing.rotation.start.min.x *= -1.0f;
-				RotationEasing.rotation.start.max.y *= -1.0f;
-				RotationEasing.rotation.start.min.y *= -1.0f;
-				RotationEasing.rotation.end.max.x *= -1.0f;
-				RotationEasing.rotation.end.min.x *= -1.0f;
-				RotationEasing.rotation.end.max.y *= -1.0f;
-				RotationEasing.rotation.end.min.y *= -1.0f;
+				RotationEasing.start.max.x *= -1.0f;
+				RotationEasing.start.min.x *= -1.0f;
+				RotationEasing.start.max.y *= -1.0f;
+				RotationEasing.start.min.y *= -1.0f;
+				RotationEasing.end.max.x *= -1.0f;
+				RotationEasing.end.min.x *= -1.0f;
+				RotationEasing.end.max.y *= -1.0f;
+				RotationEasing.end.min.y *= -1.0f;
 			}
 			else if (RotationType == ParameterRotationType_AxisPVA)
 			{
@@ -714,6 +678,19 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 			RendererCommon.reset();
 		}
 
+		if (m_effect->GetVersion() >= 1600)
+		{
+			AlphaCutoff.load(pos, m_effect->GetVersion());
+			RendererCommon.BasicParameter.EdgeThreshold = AlphaCutoff.EdgeThreshold;
+			RendererCommon.BasicParameter.EdgeColor[0] = AlphaCutoff.EdgeColor.R;
+			RendererCommon.BasicParameter.EdgeColor[1] = AlphaCutoff.EdgeColor.G;
+			RendererCommon.BasicParameter.EdgeColor[2] = AlphaCutoff.EdgeColor.B;
+			RendererCommon.BasicParameter.EdgeColor[3] = AlphaCutoff.EdgeColor.A;
+			RendererCommon.BasicParameter.EdgeColorScaling = AlphaCutoff.EdgeColorScaling;
+
+			RendererCommon.BasicParameter.IsAlphaCutoffEnabled = AlphaCutoff.Type != ParameterAlphaCutoff::EType::FIXED || AlphaCutoff.Fixed.Threshold != 0.0f;
+		}
+
 		LoadRendererParameter(pos, m_effect->GetSetting());
 
 		// rescale intensity after 1.5
@@ -721,10 +698,6 @@ void EffectNodeImplemented::LoadParameter(unsigned char*& pos, EffectNode* paren
 		RendererCommon.BasicParameter.DistortionIntensity *= m_effect->GetMaginification();
 		RendererCommon.DistortionIntensity *= m_effect->GetMaginification();
 #endif // !__EFFEKSEER_FOR_UE4__
-
-#ifdef __EFFEKSEER_BUILD_VERSION16__
-		AlphaCrunch.load(pos, m_effect->GetVersion());
-#endif
 
 		if (m_effect->GetVersion() >= 1)
 		{
@@ -804,14 +777,23 @@ void EffectNodeImplemented::CalcCustomData(const Instance* instance, std::array<
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-Effect* EffectNodeImplemented::GetEffect() const { return m_effect; }
+Effect* EffectNodeImplemented::GetEffect() const
+{
+	return m_effect;
+}
 
-int EffectNodeImplemented::GetGeneration() const { return generation_; }
+int EffectNodeImplemented::GetGeneration() const
+{
+	return generation_;
+}
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-int EffectNodeImplemented::GetChildrenCount() const { return (int)m_Nodes.size(); }
+int EffectNodeImplemented::GetChildrenCount() const
+{
+	return (int)m_Nodes.size();
+}
 
 //----------------------------------------------------------------------------------
 //
@@ -827,6 +809,73 @@ EffectBasicRenderParameter EffectNodeImplemented::GetBasicRenderParameter()
 {
 	EffectBasicRenderParameter param;
 	param.ColorTextureIndex = RendererCommon.ColorTextureIndex;
+	param.AlphaTextureIndex = RendererCommon.AlphaTextureIndex;
+	param.AlphaTexWrapType = RendererCommon.Wrap3Type;
+
+	param.UVDistortionIndex = RendererCommon.UVDistortionTextureIndex;
+	param.UVDistortionTexWrapType = RendererCommon.Wrap4Type;
+
+	param.BlendTextureIndex = RendererCommon.BlendTextureIndex;
+	param.BlendTexWrapType = RendererCommon.Wrap5Type;
+
+	param.BlendAlphaTextureIndex = RendererCommon.BlendAlphaTextureIndex;
+	param.BlendAlphaTexWrapType = RendererCommon.Wrap6Type;
+
+	param.BlendUVDistortionTextureIndex = RendererCommon.BlendUVDistortionTextureIndex;
+	param.BlendUVDistortionTexWrapType = RendererCommon.Wrap7Type;
+
+	if (RendererCommon.UVTypes[0] == ParameterRendererCommon::UV_ANIMATION)
+	{
+		if (RendererCommon.UVs[0].Animation.InterpolationType != 0)
+		{
+			param.FlipbookParams.Enable = true;
+		}
+		else
+		{
+			param.FlipbookParams.Enable = false;
+		}
+	}
+
+	param.FlipbookParams.LoopType = RendererCommon.UVs[0].Animation.LoopType;
+	param.FlipbookParams.DivideX = RendererCommon.UVs[0].Animation.FrameCountX;
+	param.FlipbookParams.DivideY = RendererCommon.UVs[0].Animation.FrameCountY;
+
+	param.MaterialType = RendererCommon.MaterialType;
+
+	param.UVDistortionIntensity = RendererCommon.UVDistortionIntensity;
+
+	param.TextureBlendType = RendererCommon.TextureBlendType;
+
+	param.BlendUVDistortionIntensity = RendererCommon.BlendUVDistortionIntensity;
+
+	if (GetType() == eEffectNodeType::EFFECT_NODE_TYPE_MODEL)
+	{
+		EffectNodeModel* pNodeModel = reinterpret_cast<EffectNodeModel*>(this);
+		param.EnableFalloff = pNodeModel->EnableFalloff;
+		param.FalloffParam.ColorBlendType = static_cast<int32_t>(pNodeModel->FalloffParam.ColorBlendType);
+		param.FalloffParam.BeginColor[0] = static_cast<float>(pNodeModel->FalloffParam.BeginColor.R) / 255.0f;
+		param.FalloffParam.BeginColor[1] = static_cast<float>(pNodeModel->FalloffParam.BeginColor.G) / 255.0f;
+		param.FalloffParam.BeginColor[2] = static_cast<float>(pNodeModel->FalloffParam.BeginColor.B) / 255.0f;
+		param.FalloffParam.BeginColor[3] = static_cast<float>(pNodeModel->FalloffParam.BeginColor.A) / 255.0f;
+		param.FalloffParam.EndColor[0] = static_cast<float>(pNodeModel->FalloffParam.EndColor.R / 255.0f);
+		param.FalloffParam.EndColor[1] = static_cast<float>(pNodeModel->FalloffParam.EndColor.G / 255.0f);
+		param.FalloffParam.EndColor[2] = static_cast<float>(pNodeModel->FalloffParam.EndColor.B / 255.0f);
+		param.FalloffParam.EndColor[3] = static_cast<float>(pNodeModel->FalloffParam.EndColor.A / 255.0f);
+		param.FalloffParam.Pow = pNodeModel->FalloffParam.Pow;
+	}
+	else
+	{
+		param.EnableFalloff = false;
+	}
+
+	param.EmissiveScaling = RendererCommon.EmissiveScaling;
+
+	param.EdgeParam.Color[0] = static_cast<float>(AlphaCutoff.EdgeColor.R) / 255.0f;
+	param.EdgeParam.Color[1] = static_cast<float>(AlphaCutoff.EdgeColor.G) / 255.0f;
+	param.EdgeParam.Color[2] = static_cast<float>(AlphaCutoff.EdgeColor.B) / 255.0f;
+	param.EdgeParam.Color[3] = static_cast<float>(AlphaCutoff.EdgeColor.A) / 255.0f;
+	param.EdgeParam.Threshold = AlphaCutoff.EdgeThreshold;
+	param.EdgeParam.ColorScaling = AlphaCutoff.EdgeColorScaling;
 	param.AlphaBlend = RendererCommon.AlphaBlend;
 	param.Distortion = RendererCommon.Distortion;
 	param.DistortionIntensity = RendererCommon.DistortionIntensity;
@@ -840,6 +889,28 @@ EffectBasicRenderParameter EffectNodeImplemented::GetBasicRenderParameter()
 void EffectNodeImplemented::SetBasicRenderParameter(EffectBasicRenderParameter param)
 {
 	RendererCommon.ColorTextureIndex = param.ColorTextureIndex;
+	RendererCommon.AlphaTextureIndex = param.AlphaTextureIndex;
+	RendererCommon.Wrap3Type = param.AlphaTexWrapType;
+
+	RendererCommon.UVDistortionTextureIndex = param.UVDistortionIndex;
+	RendererCommon.Wrap4Type = param.UVDistortionTexWrapType;
+
+	RendererCommon.BlendTextureIndex = param.BlendTextureIndex;
+	RendererCommon.Wrap5Type = param.BlendTexWrapType;
+
+	if (param.FlipbookParams.Enable)
+	{
+		RendererCommon.UVTypes[0] = ParameterRendererCommon::UV_ANIMATION;
+		RendererCommon.UVs[0].Animation.LoopType =
+			static_cast<decltype(RendererCommon.UVs[0].Animation.LoopType)>(param.FlipbookParams.LoopType);
+		RendererCommon.UVs[0].Animation.FrameCountX = param.FlipbookParams.DivideX;
+		RendererCommon.UVs[0].Animation.FrameCountY = param.FlipbookParams.DivideY;
+	}
+
+	RendererCommon.UVDistortionIntensity = param.UVDistortionIntensity;
+
+	RendererCommon.TextureBlendType = param.TextureBlendType;
+
 	RendererCommon.AlphaBlend = param.AlphaBlend;
 	RendererCommon.Distortion = param.Distortion;
 	RendererCommon.DistortionIntensity = param.DistortionIntensity;
@@ -857,7 +928,7 @@ EffectModelParameter EffectNodeImplemented::GetEffectModelParameter()
 	if (GetType() == EFFECT_NODE_TYPE_MODEL)
 	{
 		auto t = (EffectNodeModel*)this;
-		param.Lighting = t->Lighting;
+		param.Lighting = RendererCommon.MaterialType == RendererMaterialType::Lighting;
 	}
 
 	return param;
@@ -878,39 +949,55 @@ void EffectNodeImplemented::LoadRendererParameter(unsigned char*& pos, Setting* 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void EffectNodeImplemented::BeginRendering(int32_t count, Manager* manager) {}
+void EffectNodeImplemented::BeginRendering(int32_t count, Manager* manager)
+{
+}
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void EffectNodeImplemented::BeginRenderingGroup(InstanceGroup* group, Manager* manager) {}
+void EffectNodeImplemented::BeginRenderingGroup(InstanceGroup* group, Manager* manager)
+{
+}
 
-void EffectNodeImplemented::EndRenderingGroup(InstanceGroup* group, Manager* manager) {}
-
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-void EffectNodeImplemented::Rendering(const Instance& instance, const Instance* next_instance, Manager* manager) {}
-
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-void EffectNodeImplemented::EndRendering(Manager* manager) {}
+void EffectNodeImplemented::EndRenderingGroup(InstanceGroup* group, Manager* manager)
+{
+}
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void EffectNodeImplemented::InitializeRenderedInstanceGroup(InstanceGroup& instanceGroup, Manager* manager) {}
+void EffectNodeImplemented::Rendering(const Instance& instance, const Instance* next_instance, Manager* manager)
+{
+}
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void EffectNodeImplemented::InitializeRenderedInstance(Instance& instance, Manager* manager) {}
+void EffectNodeImplemented::EndRendering(Manager* manager)
+{
+}
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void EffectNodeImplemented::UpdateRenderedInstance(Instance& instance, Manager* manager) {}
+void EffectNodeImplemented::InitializeRenderedInstanceGroup(InstanceGroup& instanceGroup, Manager* manager)
+{
+}
+
+//----------------------------------------------------------------------------------
+//
+//----------------------------------------------------------------------------------
+void EffectNodeImplemented::InitializeRenderedInstance(Instance& instance, Manager* manager)
+{
+}
+
+//----------------------------------------------------------------------------------
+//
+//----------------------------------------------------------------------------------
+void EffectNodeImplemented::UpdateRenderedInstance(Instance& instance, Manager* manager)
+{
+}
 
 //----------------------------------------------------------------------------------
 //
@@ -948,7 +1035,7 @@ float EffectNodeImplemented::GetFadeAlpha(const Instance& instance)
 //----------------------------------------------------------------------------------
 void EffectNodeImplemented::PlaySound_(Instance& instance, SoundTag tag, Manager* manager)
 {
-	auto instanceGlobal = instance.m_pContainer->GetRootInstance();
+	IRandObject& rand = instance.GetRandObject();
 
 	SoundPlayer* player = manager->GetSoundPlayer();
 	if (player == NULL)
@@ -960,9 +1047,9 @@ void EffectNodeImplemented::PlaySound_(Instance& instance, SoundTag tag, Manager
 	{
 		SoundPlayer::InstanceParameter parameter;
 		parameter.Data = m_effect->GetWave(Sound.WaveId);
-		parameter.Volume = Sound.Volume.getValue(*instanceGlobal);
-		parameter.Pitch = Sound.Pitch.getValue(*instanceGlobal);
-		parameter.Pan = Sound.Pan.getValue(*instanceGlobal);
+		parameter.Volume = Sound.Volume.getValue(rand);
+		parameter.Pitch = Sound.Pitch.getValue(rand);
+		parameter.Pan = Sound.Pan.getValue(rand);
 
 		parameter.Mode3D = (Sound.PanType == ParameterSoundPanType_3D);
 		parameter.Position = ToStruct(instance.GetGlobalMatrix43().GetTranslation());

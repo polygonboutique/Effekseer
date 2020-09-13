@@ -11,6 +11,8 @@
 namespace EffekseerRendererLLGI
 {
 
+static const int InstanceCount = 10;
+
 void MaterialLoader::Deserialize(uint8_t* data, uint32_t datasize, LLGI::CompilerResult& result)
 {
 	if (datasize < 4)
@@ -41,7 +43,9 @@ MaterialLoader::MaterialLoader(GraphicsDevice* graphicsDevice,
 							   ::Effekseer::FileInterface* fileInterface,
 							   ::Effekseer::CompiledMaterialPlatformType platformType,
 							   ::Effekseer::MaterialCompiler* materialCompiler)
-	: fileInterface_(fileInterface), platformType_(platformType), materialCompiler_(materialCompiler)
+	: fileInterface_(fileInterface)
+	, platformType_(platformType)
+	, materialCompiler_(materialCompiler)
 {
 	if (fileInterface == nullptr)
 	{
@@ -50,12 +54,13 @@ MaterialLoader::MaterialLoader(GraphicsDevice* graphicsDevice,
 
 	graphicsDevice_ = graphicsDevice;
 	ES_SAFE_ADDREF(graphicsDevice_);
-    ES_SAFE_ADDREF(materialCompiler_);
+	ES_SAFE_ADDREF(materialCompiler_);
 }
 
-MaterialLoader ::~MaterialLoader() {
-    ES_SAFE_RELEASE(materialCompiler_);
-    ES_SAFE_RELEASE(graphicsDevice_);
+MaterialLoader ::~MaterialLoader()
+{
+	ES_SAFE_RELEASE(materialCompiler_);
+	ES_SAFE_RELEASE(graphicsDevice_);
 }
 
 ::Effekseer::MaterialData* MaterialLoader::Load(const EFK_CHAR* path)
@@ -125,7 +130,7 @@ MaterialLoader ::~MaterialLoader() {
 	for (int32_t st = 0; st < shaderTypeCount; st++)
 	{
 		Shader* shader = nullptr;
-		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, false, st, 1);
+		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, false, st, InstanceCount);
 
 		if (materialData->IsSimpleVertex)
 		{
@@ -141,13 +146,13 @@ MaterialLoader ::~MaterialLoader() {
 			for (size_t i = 0; i < resultVS.Binary.size(); i++)
 			{
 				dataVS[i].Data = resultVS.Binary[i].data();
-				dataVS[i].Size = resultVS.Binary[i].size();
+				dataVS[i].Size = static_cast<int32_t>(resultVS.Binary[i].size());
 			}
 
 			for (size_t i = 0; i < resultPS.Binary.size(); i++)
 			{
 				dataPS[i].Data = resultPS.Binary[i].data();
-				dataPS[i].Size = resultPS.Binary[i].size();
+				dataPS[i].Size = static_cast<int32_t>(resultPS.Binary[i].size());
 			}
 
 			// Pos(3) Color(1) UV(2)
@@ -179,13 +184,13 @@ MaterialLoader ::~MaterialLoader() {
 			for (size_t i = 0; i < resultVS.Binary.size(); i++)
 			{
 				dataVS[i].Data = resultVS.Binary[i].data();
-				dataVS[i].Size = resultVS.Binary[i].size();
+				dataVS[i].Size = static_cast<int32_t>(resultVS.Binary[i].size());
 			}
 
 			for (size_t i = 0; i < resultPS.Binary.size(); i++)
 			{
 				dataPS[i].Data = resultPS.Binary[i].data();
-				dataPS[i].Size = resultPS.Binary[i].size();
+				dataPS[i].Size = static_cast<int32_t>(resultPS.Binary[i].size());
 			}
 
 			// Pos(3) Color(1) Normal(1) Tangent(1) UV(2) UV(2)
@@ -247,10 +252,7 @@ MaterialLoader ::~MaterialLoader() {
 		auto pixelUniformSize = parameterGenerator.PixelShaderUniformBufferSize;
 
 		shader->SetVertexConstantBufferSize(vertexUniformSize);
-		shader->SetVertexRegisterCount(vertexUniformSize / (sizeof(float) * 4));
-
 		shader->SetPixelConstantBufferSize(pixelUniformSize);
-		shader->SetPixelRegisterCount(pixelUniformSize / (sizeof(float) * 4));
 
 		materialData->TextureCount = material.GetTextureCount();
 		materialData->UniformCount = material.GetUniformCount();
@@ -280,16 +282,16 @@ MaterialLoader ::~MaterialLoader() {
 		for (size_t i = 0; i < resultVS.Binary.size(); i++)
 		{
 			dataVS[i].Data = resultVS.Binary[i].data();
-			dataVS[i].Size = resultVS.Binary[i].size();
+			dataVS[i].Size = static_cast<int32_t>(resultVS.Binary[i].size());
 		}
 
 		for (size_t i = 0; i < resultPS.Binary.size(); i++)
 		{
 			dataPS[i].Data = resultPS.Binary[i].data();
-			dataPS[i].Size = resultPS.Binary[i].size();
+			dataPS[i].Size = static_cast<int32_t>(resultPS.Binary[i].size());
 		}
 
-		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, true, st, 1);
+		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, true, st, InstanceCount);
 
 		std::vector<VertexLayout> layouts;
 		layouts.push_back(VertexLayout{LLGI::VertexLayoutFormat::R32G32B32_FLOAT, "POSITION", 0});
@@ -298,8 +300,7 @@ MaterialLoader ::~MaterialLoader() {
 		layouts.push_back(VertexLayout{LLGI::VertexLayoutFormat::R32G32B32_FLOAT, "NORMAL", 2});
 		layouts.push_back(VertexLayout{LLGI::VertexLayoutFormat::R32G32_FLOAT, "TEXCOORD", 0});
 		layouts.push_back(VertexLayout{LLGI::VertexLayoutFormat::R8G8B8A8_UNORM, "NORMAL", 3});
-		layouts.push_back(VertexLayout{LLGI::VertexLayoutFormat::R8G8B8A8_UINT, "BLENDINDICES", 0});
-
+		
 		// compile
 		std::string log;
 
@@ -318,10 +319,7 @@ MaterialLoader ::~MaterialLoader() {
 		auto pixelUniformSize = parameterGenerator.PixelShaderUniformBufferSize;
 
 		shader->SetVertexConstantBufferSize(vertexUniformSize);
-		shader->SetVertexRegisterCount(vertexUniformSize / (sizeof(float) * 4));
-
 		shader->SetPixelConstantBufferSize(pixelUniformSize);
-		shader->SetPixelRegisterCount(pixelUniformSize / (sizeof(float) * 4));
 
 		if (st == 0)
 		{

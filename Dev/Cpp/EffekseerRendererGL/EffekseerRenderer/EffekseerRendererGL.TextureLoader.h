@@ -1,18 +1,19 @@
 ﻿
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
 
-#ifndef	__EFFEKSEERRENDERER_GL_TEXTURELOADER_H__
-#define	__EFFEKSEERRENDERER_GL_TEXTURELOADER_H__
+#ifndef __EFFEKSEERRENDERER_GL_TEXTURELOADER_H__
+#define __EFFEKSEERRENDERER_GL_TEXTURELOADER_H__
 
 //----------------------------------------------------------------------------------
 // Include
 //----------------------------------------------------------------------------------
-#include "EffekseerRendererGL.RendererImplemented.h"
 #include "EffekseerRendererGL.DeviceObject.h"
+#include "EffekseerRendererGL.RendererImplemented.h"
 
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
-#include "../../EffekseerRendererCommon/EffekseerRenderer.PngTextureLoader.h"
 #include "../../EffekseerRendererCommon/EffekseerRenderer.DDSTextureLoader.h"
+#include "../../EffekseerRendererCommon/EffekseerRenderer.PngTextureLoader.h"
+#include "../../EffekseerRendererCommon/EffekseerRenderer.TGATextureLoader.h"
 #endif
 
 //-----------------------------------------------------------------------------------
@@ -23,8 +24,7 @@ namespace EffekseerRendererGL
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-class TextureLoader
-	: public ::Effekseer::TextureLoader
+class TextureLoader : public ::Effekseer::TextureLoader
 {
 private:
 	::Effekseer::FileInterface* m_fileInterface;
@@ -34,6 +34,7 @@ private:
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
 	::EffekseerRenderer::PngTextureLoader pngTextureLoader;
 	::EffekseerRenderer::DDSTextureLoader ddsTextureLoader;
+	::EffekseerRenderer::TGATextureLoader tgaTextureLoader_;
 #endif
 
 public:
@@ -52,10 +53,10 @@ public:
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
+} // namespace EffekseerRendererGL
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-#endif	// __EFFEKSEERRENDERER_GL_TEXTURELOADER_H__
+#endif // __EFFEKSEERRENDERER_GL_TEXTURELOADER_H__
 
 #endif

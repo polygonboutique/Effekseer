@@ -1,6 +1,6 @@
 ﻿
-#ifndef	__EFFEKSEER_MANAGER_H__
-#define	__EFFEKSEER_MANAGER_H__
+#ifndef __EFFEKSEER_MANAGER_H__
+#define __EFFEKSEER_MANAGER_H__
 
 //----------------------------------------------------------------------------------
 // Include
@@ -20,10 +20,34 @@ namespace Effekseer
 /**
 	@brief エフェクト管理クラス
 */
-class Manager
-	: public IReference
+class Manager : public IReference
 {
 public:
+	/**
+		@brief
+		\~English Parameters when a manager is updated
+		\~Japanese マネージャーが更新されるときのパラメーター
+	*/
+	struct UpdateParameter
+	{
+		/**
+			@brief
+			\~English A passing frame
+			\~Japanese 経過するフレーム
+		*/
+		float DeltaFrame = 1.0f;
+
+		/**
+			@brief
+			\~English An update interval
+			\~Japanese 更新間隔
+			@note
+			\~English For example, DeltaTime is 2 and UpdateInterval is 1, an effect is update twice
+			\~Japanese 例えば、DeltaTimeが2でUpdateIntervalが1の場合、エフェクトは2回更新される。
+		*/
+		float UpdateInterval = 1.0f;
+	};
+
 	/**
 	@brief
 		@brief
@@ -49,8 +73,12 @@ public:
 	};
 
 protected:
-	Manager() {}
-    virtual ~Manager() {}
+	Manager()
+	{
+	}
+	virtual ~Manager()
+	{
+	}
 
 public:
 	/**
@@ -59,7 +87,7 @@ public:
 		@param	autoFlip		[in]	自動でスレッド間のデータを入れ替えるかどうか、を指定する。trueの場合、Update時に入れ替わる。
 		@return	マネージャー
 	*/
-	static Manager* Create( int instance_max, bool autoFlip = true );
+	static Manager* Create(int instance_max, bool autoFlip = true);
 
 	/**
 		@brief マネージャーを破棄する。
@@ -67,6 +95,20 @@ public:
 		このマネージャーから生成されたエフェクトは全て強制的に破棄される。
 	*/
 	virtual void Destroy() = 0;
+
+	/**
+		@brief
+		\~English Starts a specified number of worker threads
+		\~Japanese 指定した数のワーカースレッドを起動する
+	*/
+	virtual void LaunchWorkerThreads(uint32_t threadCount) = 0;
+
+	/**
+		@brief
+		\~English Get a thread handle (HANDLE(win32), pthread_t(posix) or etc.)
+		\~Japanese スレッドハンドルを取得する。(HANDLE(win32) や pthread_t(posix) など)
+	*/
+	virtual uintptr_t GetWorkerThreadHandle(uint32_t threadID) = 0;
 
 	/**
 		@brief
@@ -102,7 +144,7 @@ public:
 	/**
 		@brief	ランダム関数を設定する。
 	*/
-	virtual void SetRandFunc( RandFunc func ) = 0;
+	virtual void SetRandFunc(RandFunc func) = 0;
 
 	/**
 		@brief	ランダム最大値を取得する。
@@ -112,7 +154,7 @@ public:
 	/**
 		@brief	ランダム関数を設定する。
 	*/
-	virtual void SetRandMax( int max_ ) = 0;
+	virtual void SetRandMax(int max_) = 0;
 
 	/**
 		@brief	座標系を取得する。
@@ -127,7 +169,7 @@ public:
 		座標系を設定する。
 		エフェクトファイルを読み込む前に設定する必要がある。
 	*/
-	virtual void SetCoordinateSystem( CoordinateSystem coordinateSystem ) = 0;
+	virtual void SetCoordinateSystem(CoordinateSystem coordinateSystem) = 0;
 
 	/**
 		@brief	スプライト描画機能を取得する。
@@ -137,7 +179,7 @@ public:
 	/**
 		@brief	スプライト描画機能を設定する。
 	*/
-	virtual void SetSpriteRenderer( SpriteRenderer* renderer ) = 0;
+	virtual void SetSpriteRenderer(SpriteRenderer* renderer) = 0;
 
 	/**
 		@brief	ストライプ描画機能を取得する。
@@ -147,7 +189,7 @@ public:
 	/**
 		@brief	ストライプ描画機能を設定する。
 	*/
-	virtual void SetRibbonRenderer( RibbonRenderer* renderer ) = 0;
+	virtual void SetRibbonRenderer(RibbonRenderer* renderer) = 0;
 
 	/**
 		@brief	リング描画機能を取得する。
@@ -157,7 +199,7 @@ public:
 	/**
 		@brief	リング描画機能を設定する。
 	*/
-	virtual void SetRingRenderer( RingRenderer* renderer ) = 0;
+	virtual void SetRingRenderer(RingRenderer* renderer) = 0;
 
 	/**
 		@brief	モデル描画機能を取得する。
@@ -167,7 +209,7 @@ public:
 	/**
 		@brief	モデル描画機能を設定する。
 	*/
-	virtual void SetModelRenderer( ModelRenderer* renderer ) = 0;
+	virtual void SetModelRenderer(ModelRenderer* renderer) = 0;
 
 	/**
 		@brief	軌跡描画機能を取得する。
@@ -177,7 +219,7 @@ public:
 	/**
 		@brief	軌跡描画機能を設定する。
 	*/
-	virtual void SetTrackRenderer( TrackRenderer* renderer ) = 0;
+	virtual void SetTrackRenderer(TrackRenderer* renderer) = 0;
 
 	/**
 		@brief	設定クラスを取得する。
@@ -198,7 +240,7 @@ public:
 	/**
 		@brief	エフェクト読込クラスを設定する。
 	*/
-	virtual void SetEffectLoader( EffectLoader* effectLoader ) = 0;
+	virtual void SetEffectLoader(EffectLoader* effectLoader) = 0;
 
 	/**
 		@brief	テクスチャ読込クラスを取得する。
@@ -208,8 +250,8 @@ public:
 	/**
 		@brief	テクスチャ読込クラスを設定する。
 	*/
-	virtual void SetTextureLoader( TextureLoader* textureLoader ) = 0;
-	
+	virtual void SetTextureLoader(TextureLoader* textureLoader) = 0;
+
 	/**
 		@brief	サウンド再生機能を取得する。
 	*/
@@ -218,17 +260,17 @@ public:
 	/**
 		@brief	サウンド再生機能を設定する。
 	*/
-	virtual void SetSoundPlayer( SoundPlayer* soundPlayer ) = 0;
-	
+	virtual void SetSoundPlayer(SoundPlayer* soundPlayer) = 0;
+
 	/**
 		@brief	サウンド読込クラスを取得する
 	*/
 	virtual SoundLoader* GetSoundLoader() = 0;
-	
+
 	/**
 		@brief	サウンド読込クラスを設定する。
 	*/
-	virtual void SetSoundLoader( SoundLoader* soundLoader ) = 0;
+	virtual void SetSoundLoader(SoundLoader* soundLoader) = 0;
 
 	/**
 		@brief	モデル読込クラスを取得する。
@@ -238,7 +280,7 @@ public:
 	/**
 		@brief	モデル読込クラスを設定する。
 	*/
-	virtual void SetModelLoader( ModelLoader* modelLoader ) = 0;
+	virtual void SetModelLoader(ModelLoader* modelLoader) = 0;
 
 	/**
 		@brief
@@ -261,10 +303,30 @@ public:
 	virtual void SetMaterialLoader(MaterialLoader* loader) = 0;
 
 	/**
+		@brief
+		\~English get a curve loader
+		\~Japanese カーブローダーを取得する。
+		@return
+		\~English	loader
+		\~Japanese ローダー
+	*/
+	virtual CurveLoader* GetCurveLoader() = 0;
+
+	/**
+		@brief
+		\~English specfiy a curve loader
+		\~Japanese カーブローダーを設定する。
+		@param	loader
+		\~English	loader
+		\~Japanese ローダー
+	*/
+	virtual void SetCurveLoader(CurveLoader* loader) = 0;
+
+	/**
 		@brief	エフェクトを停止する。
 		@param	handle	[in]	インスタンスのハンドル
 	*/
-	virtual void StopEffect( Handle handle ) = 0;
+	virtual void StopEffect(Handle handle) = 0;
 
 	/**
 		@brief	全てのエフェクトを停止する。
@@ -275,20 +337,20 @@ public:
 		@brief	エフェクトのルートだけを停止する。
 		@param	handle	[in]	インスタンスのハンドル
 	*/
-	virtual void StopRoot( Handle handle ) = 0;
+	virtual void StopRoot(Handle handle) = 0;
 
 	/**
 		@brief	エフェクトのルートだけを停止する。
 		@param	effect	[in]	エフェクト
 	*/
-	virtual void StopRoot( Effect* effect ) = 0;
+	virtual void StopRoot(Effect* effect) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスが存在しているか取得する。
 		@param	handle	[in]	インスタンスのハンドル
 		@return	存在してるか?
 	*/
-	virtual bool Exists( Handle handle ) = 0;
+	virtual bool Exists(Handle handle) = 0;
 
 	/**
 		@brief	エフェクトに使用されているインスタンス数を取得する。
@@ -299,20 +361,21 @@ public:
 		Managerに残っているインスタンス数+エフェクトに使用されているインスタンス数は存在しているRootの数だけ
 		最初に確保した個数よりも多く存在する。
 	*/
-	virtual int32_t GetInstanceCount( Handle handle ) = 0;
-	
+	virtual int32_t GetInstanceCount(Handle handle) = 0;
+
 	/**
 		@brief
 		\~English Get the number of instances which is used in playing effects
 		\~Japanese 全てのエフェクトに使用されているインスタンス数を取得する。
-		@return	
+		@return
 		\~English The number of instances
 		\~Japanese インスタンス数
 		@note
-		\~English 
-		The number of Root is included. 
-		This means that the number of used instances added resting resting instances is larger than the number of allocated onces by the number of root.
-		\~Japanese 
+		\~English
+		The number of Root is included.
+		This means that the number of used instances added resting resting instances is larger than the number of allocated onces by the
+	   number of root.
+		\~Japanese
 		Rootも個数に含まれる。つまり、Root削除をしていない限り、
 		Managerに残っているインスタンス数+エフェクトに使用されているインスタンス数は、最初に確保した個数よりも存在しているRootの数の分だけ多く存在する。
 	*/
@@ -323,21 +386,21 @@ public:
 		@param	handle	[in]	インスタンスのハンドル
 		@return	行列
 	*/
-	virtual Matrix43 GetMatrix( Handle handle ) = 0;
+	virtual Matrix43 GetMatrix(Handle handle) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスに変換行列を設定する。
 		@param	handle	[in]	インスタンスのハンドル
 		@param	mat		[in]	変換行列
 	*/
-	virtual void SetMatrix( Handle handle, const Matrix43& mat ) = 0;
+	virtual void SetMatrix(Handle handle, const Matrix43& mat) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスの位置を取得する。
 		@param	handle	[in]	インスタンスのハンドル
 		@return	位置
 	*/
-	virtual Vector3D GetLocation( Handle handle ) = 0;
+	virtual Vector3D GetLocation(Handle handle) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスの位置を指定する。
@@ -345,24 +408,24 @@ public:
 		@param	y	[in]	Y座標
 		@param	z	[in]	Z座標
 	*/
-	virtual void SetLocation( Handle handle, float x, float y, float z ) = 0;
+	virtual void SetLocation(Handle handle, float x, float y, float z) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスの位置を指定する。
 		@param	location	[in]	位置
 	*/
-	virtual void SetLocation( Handle handle, const Vector3D& location ) = 0;
+	virtual void SetLocation(Handle handle, const Vector3D& location) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスの位置に加算する。
 		@param	location	[in]	加算する値
 	*/
-	virtual void AddLocation( Handle handle, const Vector3D& location ) = 0;
+	virtual void AddLocation(Handle handle, const Vector3D& location) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスの回転角度を指定する。(ラジアン)
 	*/
-	virtual void SetRotation( Handle handle, float x, float y, float z ) = 0;
+	virtual void SetRotation(Handle handle, float x, float y, float z) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスの任意軸周りの反時計周りの回転角度を指定する。
@@ -370,8 +433,8 @@ public:
 		@param	axis	[in]	軸
 		@param	angle	[in]	角度(ラジアン)
 	*/
-	virtual void SetRotation( Handle handle, const Vector3D& axis, float angle ) = 0;
-	
+	virtual void SetRotation(Handle handle, const Vector3D& axis, float angle) = 0;
+
 	/**
 		@brief	エフェクトのインスタンスの拡大率を指定する。
 		@param	handle	[in]	インスタンスのハンドル
@@ -379,7 +442,7 @@ public:
 		@param	y		[in]	Y方向拡大率
 		@param	z		[in]	Z方向拡大率
 	*/
-	virtual void SetScale( Handle handle, float x, float y, float z ) = 0;
+	virtual void SetScale(Handle handle, float x, float y, float z) = 0;
 
 	/**
 	@brief
@@ -394,13 +457,13 @@ public:
 		@param	y	[in]	Y座標
 		@param	z	[in]	Z座標
 	*/
-	virtual void SetTargetLocation( Handle handle, float x, float y, float z ) = 0;
+	virtual void SetTargetLocation(Handle handle, float x, float y, float z) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスのターゲット位置を指定する。
 		@param	location	[in]	位置
 	*/
-	virtual void SetTargetLocation( Handle handle, const Vector3D& location ) = 0;
+	virtual void SetTargetLocation(Handle handle, const Vector3D& location) = 0;
 
 	/**
 		@brief
@@ -421,7 +484,7 @@ public:
 		@param	handle	[in]	インスタンスのハンドル
 		@return	ベース行列
 	*/
-	virtual Matrix43 GetBaseMatrix( Handle handle ) = 0;
+	virtual Matrix43 GetBaseMatrix(Handle handle) = 0;
 
 	/**
 		@brief	エフェクトのベース行列を設定する。
@@ -430,14 +493,14 @@ public:
 		@note
 		エフェクト全体の表示位置を指定する行列を設定する。
 	*/
-	virtual void SetBaseMatrix( Handle handle, const Matrix43& mat ) = 0;
+	virtual void SetBaseMatrix(Handle handle, const Matrix43& mat) = 0;
 
 	/**
 		@brief	エフェクトのインスタンスに廃棄時のコールバックを設定する。
 		@param	handle	[in]	インスタンスのハンドル
 		@param	callback	[in]	コールバック
 	*/
-	virtual void SetRemovingCallback( Handle handle, EffectInstanceRemovingCallback callback ) = 0;
+	virtual void SetRemovingCallback(Handle handle, EffectInstanceRemovingCallback callback) = 0;
 
 	/**
 	@brief	\~English	Get status that a particle of effect specified is shown.
@@ -453,7 +516,7 @@ public:
 		@param	handle	[in]	インスタンスのハンドル
 		@param	shown	[in]	描画するか?
 	*/
-	virtual void SetShown( Handle handle, bool shown ) = 0;
+	virtual void SetShown(Handle handle, bool shown) = 0;
 
 	/**
 	@brief	\~English	Get status that a particle of effect specified is paused.
@@ -471,7 +534,7 @@ public:
 		@param	handle	[in]	インスタンスのハンドル
 		@param	paused	[in]	更新するか?
 	*/
-	virtual void SetPaused( Handle handle, bool paused ) = 0;
+	virtual void SetPaused(Handle handle, bool paused) = 0;
 
 	/**
 			@brief	\~English	Pause or resume all particle of effects.
@@ -499,6 +562,20 @@ public:
 	virtual void SetLayer(Handle handle, int32_t layer) = 0;
 
 	/**
+		@brief
+		\~English	Get a bitmask to specify a group
+		\~Japanese	グループを指定するためのビットマスクを取得する。
+	*/
+	virtual int64_t GetGroupMask(Handle handle) const = 0;
+
+	/**
+		@brief
+		\~English	Set a bitmask to specify a group
+		\~Japanese	グループを指定するためのビットマスクを設定する。
+	*/
+	virtual void SetGroupMask(Handle handle, int64_t groupmask) = 0;
+
+	/**
 	@brief
 	\~English	Get a playing speed of particle of effect.
 	\~Japanese	エフェクトのパーティクルの再生スピードを取得する。
@@ -516,14 +593,28 @@ public:
 		@param	handle	[in]	インスタンスのハンドル
 		@param	speed	[in]	スピード
 	*/
-	virtual void SetSpeed( Handle handle, float speed ) = 0;
+	virtual void SetSpeed(Handle handle, float speed) = 0;
+
+	/**
+		@brief
+		\~English	Specify a rate of scale in relation to manager's time  by a group.
+		\~Japanese	グループごとにマネージャーに対する時間の拡大率を設定する。
+	*/
+	virtual void SetTimeScaleByGroup(int64_t groupmask, float timeScale) = 0;
+
+	/**
+		@brief
+		\~English	Specify a rate of scale in relation to manager's time  by a handle.
+		\~Japanese	ハンドルごとにマネージャーに対する時間の拡大率を設定する。
+	*/
+	virtual void SetTimeScaleByHandle(Handle handle, float timeScale) = 0;
 
 	/**
 		@brief	エフェクトがDrawで描画されるか設定する。
 				autoDrawがfalseの場合、DrawHandleで描画する必要がある。
 		@param	autoDraw	[in]	自動描画フラグ
 	*/
-	virtual void SetAutoDrawing( Handle handle, bool autoDraw ) = 0;
+	virtual void SetAutoDrawing(Handle handle, bool autoDraw) = 0;
 
 	/**
 		@brief	今までのPlay等の処理をUpdate実行時に適用するようにする。
@@ -538,7 +629,17 @@ public:
 		\~English	passed time (1 is 1/60 seconds)
 		\~Japanese	更新するフレーム数(60fps基準)
 	*/
-	virtual void Update( float deltaFrame = 1.0f ) = 0;
+	virtual void Update(float deltaFrame = 1.0f) = 0;
+
+	/**
+		@brief
+		\~English	Update all effects.
+		\~Japanese	全てのエフェクトの更新処理を行う。
+		@param	parameter
+		\~English	A parameter for updating effects
+		\~Japanese	エフェクトを更新するためのパラメーター
+	*/
+	virtual void Update(const UpdateParameter& parameter) = 0;
 
 	/**
 		@brief
@@ -561,7 +662,7 @@ public:
 	virtual void EndUpdate() = 0;
 
 	/**
-		@brief	
+		@brief
 		\~English	Update an effect by a handle.
 		\~Japanese	ハンドル単位の更新を行う。
 		@param	handle
@@ -573,18 +674,33 @@ public:
 		@note
 		\~English
 		You need to call BeginUpdate before starting update and EndUpdate after stopping update.
-		\~Japanese	
+		\~Japanese
 		更新する前にBeginUpdate、更新し終わった後にEndUpdateを実行する必要がある。
 	*/
-	virtual void UpdateHandle( Handle handle, float deltaFrame = 1.0f ) = 0;
+	virtual void UpdateHandle(Handle handle, float deltaFrame = 1.0f) = 0;
 
 	/**
-	@brief	
+		@brief	
+		\~English	Update an effect to move to the specified frame
+		\~Japanese	指定した時間に移動するために更新する
+		\~English	a handle.
+		\~Japanese	ハンドル
+		@param	frame
+		\~English	frame time (1 is 1/60 seconds)
+		\~Japanese	フレーム時間(60fps基準)
+		@note
+		\~English	This function is slow.
+		\~Japanese	この関数は遅い。
+	*/
+	virtual void UpdateHandleToMoveToFrame(Handle handle, float frame) = 0;
+
+	/**
+	@brief
 	\~English	Draw particles.
 	\~Japanese	描画処理を行う。
 	*/
 	virtual void Draw(const Manager::DrawParameter& drawParameter = Manager::DrawParameter()) = 0;
-	
+
 	/**
 	@brief
 	\~English	Draw particles in the back of priority 0.
@@ -612,7 +728,7 @@ public:
 	\~Japanese	背面のハンドル単位の描画処理を行う。
 	*/
 	virtual void DrawHandleBack(Handle handle, const Manager::DrawParameter& drawParameter = Manager::DrawParameter()) = 0;
-	
+
 	/**
 	@brief
 	\~English	Draw particles in the front of priority 0.
@@ -628,8 +744,8 @@ public:
 		@param	z	[in]	Z座標
 		@return	エフェクトのインスタンスのハンドル
 	*/
-	virtual Handle Play( Effect* effect, float x, float y, float z ) = 0;
-	
+	virtual Handle Play(Effect* effect, float x, float y, float z) = 0;
+
 	/**
 		@brief
 		\~English	Play an effect.
@@ -657,7 +773,7 @@ public:
 		@brief	Update処理時間を取得。
 	*/
 	virtual int GetUpdateTime() const = 0;
-	
+
 	/**
 		@brief	Draw処理時間を取得。
 	*/
@@ -677,7 +793,7 @@ public:
 		@param	zsize	Z方向幅
 		@param	layerCount	層数(大きいほどカリングの効率は上がるがメモリも大量に使用する)
 	*/
-	virtual void CreateCullingWorld( float xsize, float ysize, float zsize, int32_t layerCount) = 0;
+	virtual void CreateCullingWorld(float xsize, float ysize, float zsize, int32_t layerCount) = 0;
 
 	/**
 		@brief	カリングを行い、カリングされたオブジェクトのみを描画するようにする。
@@ -694,8 +810,8 @@ public:
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
+} // namespace Effekseer
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-#endif	// __EFFEKSEER_MANAGER_H__
+#endif // __EFFEKSEER_MANAGER_H__

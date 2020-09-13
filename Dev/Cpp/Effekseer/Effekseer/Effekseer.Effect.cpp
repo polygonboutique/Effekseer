@@ -1,20 +1,22 @@
-﻿
+
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
 #include "Effekseer.Effect.h"
+#include "Effekseer.CurveLoader.h"
+#include "Effekseer.DefaultEffectLoader.h"
 #include "Effekseer.EffectImplemented.h"
+#include "Effekseer.EffectLoader.h"
+#include "Effekseer.EffectNode.h"
 #include "Effekseer.Manager.h"
 #include "Effekseer.ManagerImplemented.h"
-#include "Effekseer.EffectNode.h"
-#include "Effekseer.EffectLoader.h"
-#include "Effekseer.TextureLoader.h"
-#include "Effekseer.SoundLoader.h"
-#include "Effekseer.ModelLoader.h"
 #include "Effekseer.MaterialLoader.h"
-#include "Effekseer.DefaultEffectLoader.h"
+#include "Effekseer.ModelLoader.h"
 #include "Effekseer.Setting.h"
+#include "Effekseer.SoundLoader.h"
+#include "Effekseer.TextureLoader.h"
+#include "Model/ProcedualModelParameter.h"
 #include "Utils/Effekseer.BinaryReader.h"
 
 #include <array>
@@ -29,34 +31,47 @@ namespace Effekseer
 static void PathCombine(EFK_CHAR* dst, const EFK_CHAR* src1, const EFK_CHAR* src2)
 {
 	int len1 = 0, len2 = 0;
-	if( src1 != NULL )
+	if (src1 != NULL)
 	{
-		for( len1 = 0; src1[len1] != L'\0'; len1++ ) {}
-		memcpy( dst, src1, len1 * sizeof(EFK_CHAR) );
-		if( len1 > 0 && src1[len1 - 1] != L'/' && src1[len1 - 1] != L'\\' )
+		for (len1 = 0; src1[len1] != L'\0'; len1++)
+		{
+		}
+		memcpy(dst, src1, len1 * sizeof(EFK_CHAR));
+		if (len1 > 0 && src1[len1 - 1] != L'/' && src1[len1 - 1] != L'\\')
 		{
 			dst[len1++] = L'/';
 		}
 	}
-	if( src2 != NULL)
+	if (src2 != NULL)
 	{
-		for( len2 = 0; src2[len2] != L'\0'; len2++ ) {}
-		memcpy( &dst[len1], src2, len2 * sizeof(EFK_CHAR) );
+		for (len2 = 0; src2[len2] != L'\0'; len2++)
+		{
+		}
+		memcpy(&dst[len1], src2, len2 * sizeof(EFK_CHAR));
 	}
+
+	for (int i = 0; i < len1 + len2; i++)
+	{
+		if (dst[i] == u'\\')
+		{
+			dst[i] = u'/';
+		}
+	}
+
 	dst[len1 + len2] = L'\0';
 }
 
 static void GetParentDir(EFK_CHAR* dst, const EFK_CHAR* src)
 {
 	int i, last = -1;
-	for( i = 0; src[i] != L'\0'; i++ )
+	for (i = 0; src[i] != L'\0'; i++)
 	{
-		if( src[i] == L'/' || src[i] == L'\\' )
+		if (src[i] == L'/' || src[i] == L'\\')
 			last = i;
 	}
-	if( last >= 0 )
+	if (last >= 0)
 	{
-		memcpy( dst, src, last * sizeof(EFK_CHAR) );
+		memcpy(dst, src, last * sizeof(EFK_CHAR));
 		dst[last] = L'\0';
 	}
 	else
@@ -128,16 +143,15 @@ void EffectFactory::SetTexture(Effect* effect, int32_t index, TextureType type, 
 }
 
 void EffectFactory::SetSound(Effect* effect, int32_t index, void* data)
-{ 
-	auto effect_ = static_cast<EffectImplemented*>(effect); 
+{
+	auto effect_ = static_cast<EffectImplemented*>(effect);
 
 	assert(0 <= index && index < effect_->m_WaveCount);
 	effect_->m_pWaves[index] = data;
-	
 }
 
 void EffectFactory::SetModel(Effect* effect, int32_t index, void* data)
-{ 
+{
 	auto effect_ = static_cast<EffectImplemented*>(effect);
 	assert(0 <= index && index < effect_->modelCount_);
 	effect_->models_[index] = data;
@@ -150,26 +164,36 @@ void EffectFactory::SetMaterial(Effect* effect, int32_t index, MaterialData* dat
 	effect_->materials_[index] = data;
 }
 
-void EffectFactory::SetLoadingParameter(Effect* effect, ReferenceObject* parameter) {
+void EffectFactory::SetCurve(Effect* effect, int32_t index, void* data)
+{
+	auto effect_ = static_cast<EffectImplemented*>(effect);
+	assert(0 <= index && index < effect_->curveCount_);
+	effect_->curves_[index] = data;
+}
+
+void EffectFactory::SetLoadingParameter(Effect* effect, ReferenceObject* parameter)
+{
 	auto effect_ = static_cast<EffectImplemented*>(effect);
 	effect_->SetLoadingParameter(parameter);
 }
 
-
 bool EffectFactory::OnCheckIsBinarySupported(const void* data, int32_t size)
-{ 
+{
 	// EFKS
 	int head = 0;
 	memcpy(&head, data, sizeof(int));
 	if (memcmp(&head, "SKFE", 4) != 0)
 		return false;
-	return true; 
+	return true;
 }
 
-bool EffectFactory::OnCheckIsReloadSupported() { return true; }
+bool EffectFactory::OnCheckIsReloadSupported()
+{
+	return true;
+}
 
 bool EffectFactory::OnLoading(Effect* effect, const void* data, int32_t size, float magnification, const EFK_CHAR* materialPath)
-{ 
+{
 	return this->LoadBody(effect, data, size, magnification, materialPath);
 }
 
@@ -179,6 +203,7 @@ void EffectFactory::OnLoadingResource(Effect* effect, const void* data, int32_t 
 	auto soundLoader = effect->GetSetting()->GetSoundLoader();
 	auto modelLoader = effect->GetSetting()->GetModelLoader();
 	auto materialLoader = effect->GetSetting()->GetMaterialLoader();
+	auto curveLoader = effect->GetSetting()->GetCurveLoader();
 
 	if (textureLoader != nullptr)
 	{
@@ -245,13 +270,27 @@ void EffectFactory::OnLoadingResource(Effect* effect, const void* data, int32_t 
 			SetMaterial(effect, i, resource);
 		}
 	}
+
+	if (curveLoader != nullptr)
+	{
+		for (auto i = 0; i < effect->GetCurveCount(); i++)
+		{
+			EFK_CHAR fullPath[512];
+			PathCombine(fullPath, materialPath, effect->GetCurvePath(i));
+
+			auto resource = curveLoader->Load(fullPath);
+			SetCurve(effect, i, resource);
+		}
+	}
 }
 
-void EffectFactory::OnUnloadingResource(Effect* effect) { 
-	auto textureLoader = effect->GetSetting()->GetTextureLoader(); 
+void EffectFactory::OnUnloadingResource(Effect* effect)
+{
+	auto textureLoader = effect->GetSetting()->GetTextureLoader();
 	auto soundLoader = effect->GetSetting()->GetSoundLoader();
 	auto modelLoader = effect->GetSetting()->GetModelLoader();
 	auto materialLoader = effect->GetSetting()->GetMaterialLoader();
+	auto curveLoader = effect->GetSetting()->GetCurveLoader();
 
 	if (textureLoader != nullptr)
 	{
@@ -291,7 +330,7 @@ void EffectFactory::OnUnloadingResource(Effect* effect) {
 			SetModel(effect, i, nullptr);
 		}
 	}
-	
+
 	if (materialLoader != nullptr)
 	{
 		for (auto i = 0; i < effect->GetMaterialCount(); i++)
@@ -300,26 +339,39 @@ void EffectFactory::OnUnloadingResource(Effect* effect) {
 			SetMaterial(effect, i, nullptr);
 		}
 	}
+
+	if (curveLoader != nullptr)
+	{
+		for (auto i = 0; i < effect->GetCurveCount(); i++)
+		{
+			curveLoader->Unload(effect->GetCurve(i));
+			SetCurve(effect, i, nullptr);
+		}
+	}
 }
 
-const char* EffectFactory::GetName() const 
-{ 
+const char* EffectFactory::GetName() const
+{
 	static const char* name = "Default";
 	return name;
 }
 
- bool EffectFactory::GetIsResourcesLoadedAutomatically() const { return true; }
+bool EffectFactory::GetIsResourcesLoadedAutomatically() const
+{
+	return true;
+}
 
-EffectFactory::EffectFactory() {
+EffectFactory::EffectFactory()
+{
 }
 
 EffectFactory::~EffectFactory()
 {
 }
 
-Effect* Effect::Create(Manager * manager, void* data, int32_t size, float magnification, const EFK_CHAR* materialPath)
+Effect* Effect::Create(Manager* manager, void* data, int32_t size, float magnification, const EFK_CHAR* materialPath)
 {
-	return EffectImplemented::Create( manager, data, size, magnification, materialPath );
+	return EffectImplemented::Create(manager, data, size, magnification, materialPath);
 }
 
 Effect* Effect::Create(Manager* manager, const EFK_CHAR* path, float magnification, const EFK_CHAR* materialPath)
@@ -328,12 +380,14 @@ Effect* Effect::Create(Manager* manager, const EFK_CHAR* path, float magnificati
 
 	EffectLoader* eLoader = setting->GetEffectLoader();
 
-	if (setting == NULL) return NULL;
+	if (setting == NULL)
+		return NULL;
 
 	void* data = NULL;
 	int32_t size = 0;
 
-	if (!eLoader->Load(path, data, size)) return NULL;
+	if (!eLoader->Load(path, data, size))
+		return NULL;
 
 	EFK_CHAR parentDir[512];
 	if (materialPath == NULL)
@@ -488,7 +542,7 @@ bool EffectImplemented::LoadBody(const uint8_t* data, int32_t size, float mag)
 	{
 		// material
 		binaryReader.Read(materialCount_, 0, elementCountMax);
-		
+
 		if (materialCount_ > 0)
 		{
 			materialPaths_ = new EFK_CHAR*[materialCount_];
@@ -550,6 +604,29 @@ bool EffectImplemented::LoadBody(const uint8_t* data, int32_t size, float mag)
 		defaultDynamicInputs.fill(0);
 	}
 
+	if (m_version >= 1600)
+	{
+		// curve
+		binaryReader.Read(curveCount_, 0, elementCountMax);
+
+		if (curveCount_ > 0)
+		{
+			curvePaths_ = new EFK_CHAR*[curveCount_];
+			curves_ = new void*[curveCount_];
+
+			for (int i = 0; i < curveCount_; i++)
+			{
+				int length = 0;
+				binaryReader.Read(length, 0, elementCountMax);
+
+				curvePaths_[i] = new EFK_CHAR[length];
+				binaryReader.Read(curvePaths_[i], length);
+
+				curves_[i] = nullptr;
+			}
+		}
+	}
+
 	if (m_version >= 13)
 	{
 		binaryReader.Read(renderingNodesCount, 0, elementCountMax);
@@ -594,24 +671,25 @@ bool EffectImplemented::LoadBody(const uint8_t* data, int32_t size, float mag)
 	// Nodes
 	auto nodeData = pos + binaryReader.GetOffset();
 	m_pRoot = EffectNodeImplemented::Create(this, nullptr, nodeData);
-	
+
 	return true;
 }
 
 void EffectImplemented::ResetReloadingBackup()
 {
-	if(reloadingBackup == nullptr) return;
+	if (reloadingBackup == nullptr)
+		return;
 
 	Setting* loader = GetSetting();
 
 	TextureLoader* textureLoader = loader->GetTextureLoader();
 	if (textureLoader != NULL)
 	{
-		for (auto it: reloadingBackup->images.GetCollection())
+		for (auto it : reloadingBackup->images.GetCollection())
 		{
 			textureLoader->Unload(it.second.value);
 		}
-	
+
 		for (auto it : reloadingBackup->normalImages.GetCollection())
 		{
 			textureLoader->Unload(it.second.value);
@@ -646,13 +724,13 @@ void EffectImplemented::ResetReloadingBackup()
 	reloadingBackup.reset();
 }
 
-
-Effect* EffectImplemented::Create( Manager* pManager, void* pData, int size, float magnification, const EFK_CHAR* materialPath )
+Effect* EffectImplemented::Create(Manager* pManager, void* pData, int size, float magnification, const EFK_CHAR* materialPath)
 {
-	if( pData == NULL || size == 0 ) return NULL;
+	if (pData == NULL || size == 0)
+		return NULL;
 
-	EffectImplemented* effect = new EffectImplemented( pManager, pData, size );
-	if ( !effect->Load( pData, size, magnification, materialPath, ReloadingThreadType::Main) )
+	EffectImplemented* effect = new EffectImplemented(pManager, pData, size);
+	if (!effect->Load(pData, size, magnification, materialPath, ReloadingThreadType::Main))
 	{
 		effect->Release();
 		effect = NULL;
@@ -663,25 +741,28 @@ Effect* EffectImplemented::Create( Manager* pManager, void* pData, int size, flo
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-Effect* Effect::Create( Setting* setting, void* data, int32_t size, float magnification, const EFK_CHAR* materialPath )
+Effect* Effect::Create(Setting* setting, void* data, int32_t size, float magnification, const EFK_CHAR* materialPath)
 {
-	return EffectImplemented::Create(setting, data, size, magnification, materialPath );
+	return EffectImplemented::Create(setting, data, size, magnification, materialPath);
 }
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-Effect* Effect::Create( Setting* setting, const EFK_CHAR* path, float magnification, const EFK_CHAR* materialPath)
+Effect* Effect::Create(Setting* setting, const EFK_CHAR* path, float magnification, const EFK_CHAR* materialPath)
 {
-	if(setting == NULL) return NULL;
+	if (setting == NULL)
+		return NULL;
 	EffectLoader* eLoader = setting->GetEffectLoader();
 
-	if (setting == NULL) return NULL;
+	if (setting == NULL)
+		return NULL;
 
 	void* data = NULL;
 	int32_t size = 0;
 
-	if (!eLoader->Load(path, data, size)) return NULL;
+	if (!eLoader->Load(path, data, size))
+		return NULL;
 
 	EFK_CHAR parentDir[512];
 	if (materialPath == NULL)
@@ -702,12 +783,13 @@ Effect* Effect::Create( Setting* setting, const EFK_CHAR* path, float magnificat
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-Effect* EffectImplemented::Create( Setting* setting, void* pData, int size, float magnification, const EFK_CHAR* materialPath )
+Effect* EffectImplemented::Create(Setting* setting, void* pData, int size, float magnification, const EFK_CHAR* materialPath)
 {
-	if( pData == NULL || size == 0 ) return NULL;
+	if (pData == NULL || size == 0)
+		return NULL;
 
-	EffectImplemented* effect = new EffectImplemented( setting, pData, size );
-	if ( !effect->Load( pData, size, magnification, materialPath, ReloadingThreadType::Main) )
+	EffectImplemented* effect = new EffectImplemented(setting, pData, size);
+	if (!effect->Load(pData, size, magnification, materialPath, ReloadingThreadType::Main))
 	{
 		effect->Release();
 		effect = NULL;
@@ -726,24 +808,24 @@ Effect* EffectImplemented::Create( Setting* setting, void* pData, int size, floa
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-EffectImplemented::EffectImplemented( Manager* pManager, void* pData, int size )
-	: m_pManager		( (ManagerImplemented*)pManager )
-	, m_setting			(NULL)
-	, m_reference		( 1 )
-	, m_version			( 0 )
-	, m_ImageCount		( 0 )
-	, m_ImagePaths		( NULL )
-	, m_pImages			( NULL )
+EffectImplemented::EffectImplemented(Manager* pManager, void* pData, int size)
+	: m_pManager((ManagerImplemented*)pManager)
+	, m_setting(NULL)
+	, m_reference(1)
+	, m_version(0)
+	, m_ImageCount(0)
+	, m_ImagePaths(NULL)
+	, m_pImages(NULL)
 	, m_normalImageCount(0)
 	, m_normalImagePaths(nullptr)
 	, m_normalImages(nullptr)
 	, m_distortionImageCount(0)
 	, m_distortionImagePaths(nullptr)
 	, m_distortionImages(nullptr)
-	, m_defaultRandomSeed	(-1)
+	, m_defaultRandomSeed(-1)
 
 {
-	ES_SAFE_ADDREF( m_pManager );
+	ES_SAFE_ADDREF(m_pManager);
 
 	Culling.Shape = CullingShape::NoneShape;
 }
@@ -751,14 +833,14 @@ EffectImplemented::EffectImplemented( Manager* pManager, void* pData, int size )
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-EffectImplemented::EffectImplemented( Setting* setting, void* pData, int size )
-	: m_pManager		( NULL )
-	, m_setting			(setting)
-	, m_reference		( 1 )
-	, m_version			( 0 )
-	, m_ImageCount		( 0 )
-	, m_ImagePaths		( NULL )
-	, m_pImages			( NULL )
+EffectImplemented::EffectImplemented(Setting* setting, void* pData, int size)
+	: m_pManager(NULL)
+	, m_setting(setting)
+	, m_reference(1)
+	, m_version(0)
+	, m_ImageCount(0)
+	, m_ImagePaths(NULL)
+	, m_pImages(NULL)
 	, m_normalImageCount(0)
 	, m_normalImagePaths(nullptr)
 	, m_normalImages(nullptr)
@@ -766,8 +848,8 @@ EffectImplemented::EffectImplemented( Setting* setting, void* pData, int size )
 	, m_distortionImagePaths(nullptr)
 	, m_distortionImages(nullptr)
 {
-	ES_SAFE_ADDREF( m_setting );
-	
+	ES_SAFE_ADDREF(m_setting);
+
 	Culling.Shape = CullingShape::NoneShape;
 }
 
@@ -780,8 +862,8 @@ EffectImplemented::~EffectImplemented()
 	Reset();
 	SetLoadingParameter(nullptr);
 
-	ES_SAFE_RELEASE( m_setting );
-	ES_SAFE_RELEASE( m_pManager );
+	ES_SAFE_RELEASE(m_setting);
+	ES_SAFE_RELEASE(m_pManager);
 
 	ES_SAFE_RELEASE(factory);
 }
@@ -805,15 +887,17 @@ float EffectImplemented::GetMaginification() const
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-bool EffectImplemented::Load( void* pData, int size, float mag, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
+bool EffectImplemented::Load(void* pData, int size, float mag, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
 {
-	if(m_setting != nullptr)
+	ES_SAFE_RELEASE(factory);
+
+	if (m_setting != nullptr)
 	{
 		for (int i = 0; i < m_setting->GetEffectFactoryCount(); i++)
 		{
 			auto f = m_setting->GetEffectFactory(i);
 
-			if(f->OnCheckIsBinarySupported(pData, size))
+			if (f->OnCheckIsBinarySupported(pData, size))
 			{
 				ES_SAFE_ADDREF(f);
 				factory = f;
@@ -849,13 +933,14 @@ bool EffectImplemented::Load( void* pData, int size, float mag, const EFK_CHAR* 
 
 	EffekseerPrintDebug("** Create : Effect\n");
 
-	if(!factory->OnLoading(this, pData, size, mag, materialPath))
+	if (!factory->OnLoading(this, pData, size, mag, materialPath))
 	{
 		return false;
 	}
 
 	// save materialPath for reloading
-    if (materialPath != nullptr) m_materialPath = materialPath;
+	if (materialPath != nullptr)
+		m_materialPath = materialPath;
 
 	if (factory->GetIsResourcesLoadedAutomatically())
 	{
@@ -872,20 +957,22 @@ void EffectImplemented::Reset()
 {
 	UnloadResources();
 
-	for( int i = 0; i < m_ImageCount; i++ )
+	for (int i = 0; i < m_ImageCount; i++)
 	{
-		if( m_ImagePaths[i] != NULL ) delete [] m_ImagePaths[i];
+		if (m_ImagePaths[i] != NULL)
+			delete[] m_ImagePaths[i];
 	}
 
 	m_ImageCount = 0;
 
-	ES_SAFE_DELETE_ARRAY( m_ImagePaths );
+	ES_SAFE_DELETE_ARRAY(m_ImagePaths);
 	ES_SAFE_DELETE_ARRAY(m_pImages);
 
 	{
 		for (int i = 0; i < m_normalImageCount; i++)
 		{
-			if (m_normalImagePaths[i] != NULL) delete [] m_normalImagePaths[i];
+			if (m_normalImagePaths[i] != NULL)
+				delete[] m_normalImagePaths[i];
 		}
 
 		m_normalImageCount = 0;
@@ -897,7 +984,8 @@ void EffectImplemented::Reset()
 	{
 		for (int i = 0; i < m_distortionImageCount; i++)
 		{
-			if (m_distortionImagePaths[i] != NULL) delete [] m_distortionImagePaths[i];
+			if (m_distortionImagePaths[i] != NULL)
+				delete[] m_distortionImagePaths[i];
 		}
 
 		m_distortionImageCount = 0;
@@ -906,23 +994,25 @@ void EffectImplemented::Reset()
 		ES_SAFE_DELETE_ARRAY(m_distortionImages);
 	}
 
-	for( int i = 0; i < m_WaveCount; i++ )
+	for (int i = 0; i < m_WaveCount; i++)
 	{
-		if( m_WavePaths[i] != NULL ) delete [] m_WavePaths[i];
+		if (m_WavePaths[i] != NULL)
+			delete[] m_WavePaths[i];
 	}
 	m_WaveCount = 0;
 
-	ES_SAFE_DELETE_ARRAY( m_WavePaths );
-	ES_SAFE_DELETE_ARRAY( m_pWaves );
+	ES_SAFE_DELETE_ARRAY(m_WavePaths);
+	ES_SAFE_DELETE_ARRAY(m_pWaves);
 
-	for( int i = 0; i < modelCount_; i++ )
+	for (int i = 0; i < modelCount_; i++)
 	{
-		if( modelPaths_[i] != NULL ) delete [] modelPaths_[i];
+		if (modelPaths_[i] != NULL)
+			delete[] modelPaths_[i];
 	}
 	modelCount_ = 0;
 
-	ES_SAFE_DELETE_ARRAY( modelPaths_ );
-	ES_SAFE_DELETE_ARRAY( models_ );
+	ES_SAFE_DELETE_ARRAY(modelPaths_);
+	ES_SAFE_DELETE_ARRAY(models_);
 
 	for (int i = 0; i < materialCount_; i++)
 	{
@@ -934,7 +1024,7 @@ void EffectImplemented::Reset()
 	ES_SAFE_DELETE_ARRAY(materialPaths_);
 	ES_SAFE_DELETE_ARRAY(materials_);
 
-	ES_SAFE_DELETE( m_pRoot );
+	ES_SAFE_DELETE(m_pRoot);
 }
 
 bool EffectImplemented::IsDyanamicMagnificationValid() const
@@ -942,12 +1032,13 @@ bool EffectImplemented::IsDyanamicMagnificationValid() const
 	return GetVersion() >= 8 || GetVersion() < 2;
 }
 
-ReferenceObject* EffectImplemented::GetLoadingParameter() const {
+ReferenceObject* EffectImplemented::GetLoadingParameter() const
+{
 	return loadingObject;
 }
 
 void EffectImplemented::SetLoadingParameter(ReferenceObject* obj)
-{ 
+{
 	ES_SAFE_ADDREF(obj);
 	ES_SAFE_RELEASE(loadingObject);
 	loadingObject = obj;
@@ -955,7 +1046,7 @@ void EffectImplemented::SetLoadingParameter(ReferenceObject* obj)
 
 Manager* EffectImplemented::GetManager() const
 {
-	return m_pManager;	
+	return m_pManager;
 }
 
 const char16_t* EffectImplemented::GetName() const
@@ -970,7 +1061,8 @@ void EffectImplemented::SetName(const char16_t* name)
 
 Setting* EffectImplemented::GetSetting() const
 {
-	if(m_setting != NULL) return m_setting;
+	if (m_setting != NULL)
+		return m_setting;
 	return m_pManager->GetSetting();
 }
 
@@ -985,9 +1077,9 @@ int EffectImplemented::GetVersion() const
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-TextureData* EffectImplemented::GetColorImage( int n ) const
+TextureData* EffectImplemented::GetColorImage(int n) const
 {
-	return m_pImages[ n ];
+	return m_pImages[n];
 }
 
 int32_t EffectImplemented::GetColorImageCount() const
@@ -995,7 +1087,10 @@ int32_t EffectImplemented::GetColorImageCount() const
 	return m_ImageCount;
 }
 
-const EFK_CHAR* EffectImplemented::GetColorImagePath(int n) const { return m_ImagePaths[n]; }
+const EFK_CHAR* EffectImplemented::GetColorImagePath(int n) const
+{
+	return m_ImagePaths[n];
+}
 
 TextureData* EffectImplemented::GetNormalImage(int n) const
 {
@@ -1013,7 +1108,10 @@ int32_t EffectImplemented::GetNormalImageCount() const
 	return m_normalImageCount;
 }
 
-const EFK_CHAR* EffectImplemented::GetNormalImagePath(int n) const { return m_normalImagePaths[n]; }
+const EFK_CHAR* EffectImplemented::GetNormalImagePath(int n) const
+{
+	return m_normalImagePaths[n];
+}
 
 TextureData* EffectImplemented::GetDistortionImage(int n) const
 {
@@ -1031,11 +1129,14 @@ int32_t EffectImplemented::GetDistortionImageCount() const
 	return m_distortionImageCount;
 }
 
-const EFK_CHAR* EffectImplemented::GetDistortionImagePath(int n) const { return m_distortionImagePaths[n]; }
-
-void* EffectImplemented::GetWave( int n ) const
+const EFK_CHAR* EffectImplemented::GetDistortionImagePath(int n) const
 {
-	return m_pWaves[ n ];
+	return m_distortionImagePaths[n];
+}
+
+void* EffectImplemented::GetWave(int n) const
+{
+	return m_pWaves[n];
 }
 
 int32_t EffectImplemented::GetWaveCount() const
@@ -1043,11 +1144,14 @@ int32_t EffectImplemented::GetWaveCount() const
 	return m_WaveCount;
 }
 
-const EFK_CHAR* EffectImplemented::GetWavePath(int n) const { return m_WavePaths[n]; }
-
-void* EffectImplemented::GetModel( int n ) const
+const EFK_CHAR* EffectImplemented::GetWavePath(int n) const
 {
-	return models_[ n ];
+	return m_WavePaths[n];
+}
+
+void* EffectImplemented::GetModel(int n) const
+{
+	return models_[n];
 }
 
 int32_t EffectImplemented::GetModelCount() const
@@ -1055,13 +1159,65 @@ int32_t EffectImplemented::GetModelCount() const
 	return modelCount_;
 }
 
-const EFK_CHAR* EffectImplemented::GetModelPath(int n) const { return modelPaths_[n]; }
+const EFK_CHAR* EffectImplemented::GetModelPath(int n) const
+{
+	return modelPaths_[n];
+}
 
-MaterialData* EffectImplemented::GetMaterial(int n) const { return materials_[n]; }
+MaterialData* EffectImplemented::GetMaterial(int n) const
+{
+	return materials_[n];
+}
 
-int32_t EffectImplemented::GetMaterialCount() const { return materialCount_; }
+int32_t EffectImplemented::GetMaterialCount() const
+{
+	return materialCount_;
+}
 
-const EFK_CHAR* EffectImplemented::GetMaterialPath(int n) const { return materialPaths_[n]; }
+const EFK_CHAR* EffectImplemented::GetMaterialPath(int n) const
+{
+	return materialPaths_[n];
+}
+
+void* EffectImplemented::GetCurve(int n) const
+{
+	return curves_[n];
+}
+
+int32_t EffectImplemented::GetCurveCount() const
+{
+	return curveCount_;
+}
+
+const EFK_CHAR* EffectImplemented::GetCurvePath(int n) const
+{
+	return curvePaths_[n];
+}
+
+Model* EffectImplemented::GetProcedualModel(int n) const
+{
+	if (n < 0 || n >= GetProcedualModelCount())
+	{
+		return nullptr;
+	}
+
+	return procedualModels_[n];
+}
+
+int32_t EffectImplemented::GetProcedualModelCount() const
+{
+	return static_cast<int32_t>(procedualModelParameters_.size());
+}
+
+const ProcedualModelParameter* EffectImplemented::GetProcedualModelParameter(int n) const
+{
+	if (n < 0 || n >= GetProcedualModelCount())
+	{
+		return nullptr;
+	}
+
+	return &procedualModelParameters_[n];
+}
 
 void EffectImplemented::SetTexture(int32_t index, TextureType type, TextureData* data)
 {
@@ -1140,45 +1296,70 @@ void EffectImplemented::SetMaterial(int32_t index, MaterialData* data)
 	materials_[index] = data;
 }
 
-bool EffectImplemented::Reload( void* data, int32_t size, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
+void EffectImplemented::SetCurve(int32_t index, void* data)
 {
-	if(m_pManager == NULL ) return false;
+	auto curveLoader = GetSetting()->GetCurveLoader();
+	assert(0 <= index && index < curveCount_);
+
+	if (curveLoader != nullptr)
+	{
+		curveLoader->Unload(GetCurve(index));
+	}
+
+	curves_[index] = data;
+}
+
+bool EffectImplemented::Reload(void* data, int32_t size, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
+{
+	if (m_pManager == NULL)
+		return false;
 
 	std::array<Manager*, 1> managers;
 	managers[0] = m_pManager;
 
-	return Reload( managers.data(), managers.size(), data, size, materialPath, reloadingThreadType);
+	return Reload(managers.data(), static_cast<int32_t>(managers.size()), data, size, materialPath, reloadingThreadType);
 }
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-bool EffectImplemented::Reload( const EFK_CHAR* path, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
+bool EffectImplemented::Reload(const EFK_CHAR* path, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
 {
-	if(m_pManager == NULL ) return false;
+	if (m_pManager == NULL)
+		return false;
 
 	std::array<Manager*, 1> managers;
 	managers[0] = m_pManager;
 
-	return Reload(managers.data(), managers.size(), path, materialPath, reloadingThreadType);
+	return Reload(managers.data(), static_cast<int32_t>(managers.size()), path, materialPath, reloadingThreadType);
 }
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-bool EffectImplemented::Reload( Manager** managers, int32_t managersCount, void* data, int32_t size, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
+bool EffectImplemented::Reload(Manager** managers,
+							   int32_t managersCount,
+							   void* data,
+							   int32_t size,
+							   const EFK_CHAR* materialPath,
+							   ReloadingThreadType reloadingThreadType)
 {
 	if (!factory->OnCheckIsReloadSupported())
 		return false;
 
 	const EFK_CHAR* matPath = materialPath != NULL ? materialPath : m_materialPath.c_str();
-	
-	int lockCount = 0;
 
-	for( int32_t i = 0; i < managersCount; i++)
+	for (int32_t i = 0; i < managersCount; i++)
 	{
-		((ManagerImplemented*)managers[i])->BeginReloadEffect( this, lockCount == 0);
-		lockCount++;
+		// to call only once
+		for (int32_t j = 0; j < i; j++)
+		{
+			if (managers[i] == managers[j])
+				continue;
+		}
+
+		auto manager = static_cast<ManagerImplemented*>(managers[i]);
+		manager->BeginReloadEffect(this, true);
 	}
 
 	// HACK for scale
@@ -1187,7 +1368,7 @@ bool EffectImplemented::Reload( Manager** managers, int32_t managersCount, void*
 
 	isReloadingOnRenderingThread = true;
 	Reset();
-	Load( data, size, originalMag * originalMagExt, matPath, reloadingThreadType);
+	Load(data, size, originalMag * originalMagExt, matPath, reloadingThreadType);
 
 	// HACK for scale
 	m_maginification = originalMag * originalMagExt;
@@ -1195,10 +1376,17 @@ bool EffectImplemented::Reload( Manager** managers, int32_t managersCount, void*
 
 	isReloadingOnRenderingThread = false;
 
-	for( int32_t i = 0; i < managersCount; i++)
+	for (int32_t i = 0; i < managersCount; i++)
 	{
-		lockCount--;
-		((ManagerImplemented*)managers[i])->EndReloadEffect( this, lockCount == 0);
+		// to call only once
+		for (int32_t j = 0; j < i; j++)
+		{
+			if (managers[i] == managers[j])
+				continue;
+		}
+
+		auto manager = static_cast<ManagerImplemented*>(managers[i]);
+		manager->EndReloadEffect(this, true);
 	}
 
 	return false;
@@ -1207,23 +1395,26 @@ bool EffectImplemented::Reload( Manager** managers, int32_t managersCount, void*
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-bool EffectImplemented::Reload( Manager** managers, int32_t managersCount, const EFK_CHAR* path, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
+bool EffectImplemented::Reload(
+	Manager** managers, int32_t managersCount, const EFK_CHAR* path, const EFK_CHAR* materialPath, ReloadingThreadType reloadingThreadType)
 {
 	if (!factory->OnCheckIsReloadSupported())
 		return false;
 
 	Setting* loader = GetSetting();
-	
+
 	EffectLoader* eLoader = loader->GetEffectLoader();
-	if( loader == NULL ) return false;
+	if (loader == NULL)
+		return false;
 
 	void* data = NULL;
 	int32_t size = 0;
 
-	if( !eLoader->Load( path, data, size ) ) return false;
+	if (!eLoader->Load(path, data, size))
+		return false;
 
 	EFK_CHAR parentDir[512];
-	if( materialPath == NULL )
+	if (materialPath == NULL)
 	{
 		GetParentDir(parentDir, path);
 		materialPath = parentDir;
@@ -1231,22 +1422,26 @@ bool EffectImplemented::Reload( Manager** managers, int32_t managersCount, const
 
 	int lockCount = 0;
 
-	for( int32_t i = 0; i < managersCount; i++)
+	for (int32_t i = 0; i < managersCount; i++)
 	{
-		((ManagerImplemented*)&(managers[i]))->BeginReloadEffect( this, lockCount == 0);
+		auto manager = static_cast<ManagerImplemented*>(managers[i]);
+		manager->BeginReloadEffect(this, lockCount == 0);
 		lockCount++;
 	}
 
 	isReloadingOnRenderingThread = true;
 	Reset();
-	Load( data, size, m_maginificationExternal, materialPath, reloadingThreadType);
+	Load(data, size, m_maginificationExternal, materialPath, reloadingThreadType);
 	isReloadingOnRenderingThread = false;
 
-	for( int32_t i = 0; i < managersCount; i++)
+	for (int32_t i = 0; i < managersCount; i++)
 	{
 		lockCount--;
-		((ManagerImplemented*)&(managers[i]))->EndReloadEffect( this, lockCount == 0);
+		auto manager = static_cast<ManagerImplemented*>(managers[i]);
+		manager->EndReloadEffect(this, lockCount == 0);
 	}
+
+	eLoader->Unload(data, size);
 
 	return false;
 }
@@ -1259,7 +1454,7 @@ void EffectImplemented::ReloadResources(const void* data, int32_t size, const EF
 	UnloadResources();
 
 	const EFK_CHAR* matPath = materialPath != NULL ? materialPath : m_materialPath.c_str();
-	
+
 	Setting* loader = GetSetting();
 
 	// reloading on render thread
@@ -1278,31 +1473,31 @@ void EffectImplemented::ReloadResources(const void* data, int32_t size, const EF
 				m_pImages[ind] = value;
 			}
 		}
-	
+
 		for (int32_t ind = 0; ind < m_normalImageCount; ind++)
 		{
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, m_normalImagePaths[ind]);
-			
+
 			TextureData* value = nullptr;
 			if (reloadingBackup->normalImages.Pop(fullPath, value))
 			{
 				m_normalImages[ind] = value;
 			}
 		}
-				
+
 		for (int32_t ind = 0; ind < m_distortionImageCount; ind++)
 		{
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, m_distortionImagePaths[ind]);
-			
+
 			TextureData* value = nullptr;
 			if (reloadingBackup->distortionImages.Pop(fullPath, value))
 			{
 				m_distortionImages[ind] = value;
 			}
 		}
-				
+
 		for (int32_t ind = 0; ind < m_WaveCount; ind++)
 		{
 			EFK_CHAR fullPath[512];
@@ -1314,14 +1509,12 @@ void EffectImplemented::ReloadResources(const void* data, int32_t size, const EF
 				m_pWaves[ind] = value;
 			}
 		}
-		
-		
-		
+
 		for (int32_t ind = 0; ind < modelCount_; ind++)
 		{
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, modelPaths_[ind]);
-			
+
 			void* value = nullptr;
 			if (reloadingBackup->models.Pop(fullPath, value))
 			{
@@ -1340,7 +1533,19 @@ void EffectImplemented::ReloadResources(const void* data, int32_t size, const EF
 				materials_[ind] = value;
 			}
 		}
-			
+
+		for (int32_t ind = 0; ind < curveCount_; ind++)
+		{
+			EFK_CHAR fullPath[512];
+			PathCombine(fullPath, matPath, curvePaths_[ind]);
+
+			void* value = nullptr;
+			if (reloadingBackup->curves.Pop(fullPath, value))
+			{
+				curves_[ind] = value;
+			}
+		}
+
 		return;
 	}
 
@@ -1363,7 +1568,8 @@ void EffectImplemented::UnloadResources(const EFK_CHAR* materialPath)
 
 		for (int32_t ind = 0; ind < m_ImageCount; ind++)
 		{
-			if (m_pImages[ind] == nullptr) continue;
+			if (m_pImages[ind] == nullptr)
+				continue;
 
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, m_ImagePaths[ind]);
@@ -1372,7 +1578,8 @@ void EffectImplemented::UnloadResources(const EFK_CHAR* materialPath)
 
 		for (int32_t ind = 0; ind < m_normalImageCount; ind++)
 		{
-			if (m_normalImages[ind] == nullptr) continue;
+			if (m_normalImages[ind] == nullptr)
+				continue;
 
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, m_normalImagePaths[ind]);
@@ -1381,7 +1588,8 @@ void EffectImplemented::UnloadResources(const EFK_CHAR* materialPath)
 
 		for (int32_t ind = 0; ind < m_distortionImageCount; ind++)
 		{
-			if (m_distortionImagePaths[ind] == nullptr) continue;
+			if (m_distortionImagePaths[ind] == nullptr)
+				continue;
 
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, m_distortionImagePaths[ind]);
@@ -1390,7 +1598,8 @@ void EffectImplemented::UnloadResources(const EFK_CHAR* materialPath)
 
 		for (int32_t ind = 0; ind < m_WaveCount; ind++)
 		{
-			if (m_pWaves[ind] == nullptr) continue;
+			if (m_pWaves[ind] == nullptr)
+				continue;
 
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, m_WavePaths[ind]);
@@ -1399,7 +1608,8 @@ void EffectImplemented::UnloadResources(const EFK_CHAR* materialPath)
 
 		for (int32_t ind = 0; ind < modelCount_; ind++)
 		{
-			if (models_[ind] == nullptr) continue;
+			if (models_[ind] == nullptr)
+				continue;
 
 			EFK_CHAR fullPath[512];
 			PathCombine(fullPath, matPath, modelPaths_[ind]);
@@ -1416,6 +1626,16 @@ void EffectImplemented::UnloadResources(const EFK_CHAR* materialPath)
 			reloadingBackup->materials.Push(fullPath, materials_[ind]);
 		}
 
+		for (int32_t ind = 0; ind < curveCount_; ind++)
+		{
+			if (curves_[ind] == nullptr)
+				continue;
+
+			EFK_CHAR fullPath[512];
+			PathCombine(fullPath, matPath, curvePaths_[ind]);
+			reloadingBackup->curves.Push(fullPath, curves_[ind]);
+		}
+
 		return;
 	}
 	else
@@ -1423,7 +1643,10 @@ void EffectImplemented::UnloadResources(const EFK_CHAR* materialPath)
 		ResetReloadingBackup();
 	}
 
-	factory->OnUnloadingResource(this);
+	if (factory != nullptr)
+	{
+		factory->OnUnloadingResource(this);
+	}
 }
 
 void EffectImplemented::UnloadResources()
@@ -1432,18 +1655,17 @@ void EffectImplemented::UnloadResources()
 }
 
 EffectTerm EffectImplemented::CalculateTerm() const
-{ 
-	
+{
+
 	EffectTerm effectTerm;
 	effectTerm.TermMin = 0;
 	effectTerm.TermMax = 0;
 
-	auto root = GetRoot(); 
+	auto root = GetRoot();
 	EffectInstanceTerm rootTerm;
 
 	std::function<void(EffectNode*, EffectInstanceTerm&)> recurse;
-	recurse = [&effectTerm, &recurse](EffectNode* node, EffectInstanceTerm& term) -> void
-	{
+	recurse = [&effectTerm, &recurse](EffectNode* node, EffectInstanceTerm& term) -> void {
 		for (int i = 0; i < node->GetChildrenCount(); i++)
 		{
 			auto cterm = node->GetChild(i)->CalculateInstanceTerm(term);
@@ -1462,5 +1684,4 @@ EffectTerm EffectImplemented::CalculateTerm() const
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
-
+} // namespace Effekseer

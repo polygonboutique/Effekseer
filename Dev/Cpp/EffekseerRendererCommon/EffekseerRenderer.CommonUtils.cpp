@@ -42,7 +42,6 @@ void CalcBillboard(::Effekseer::BillboardType billboardType,
 			R = ::Effekseer::Vec3f::Cross(Up, F).Normalize();
 			U = ::Effekseer::Vec3f::Cross(F, R).Normalize();
 
-			
 			float c_zx2 = Effekseer::Vec3f::Dot(r.Y, r.Y) - r.Y.GetZ() * r.Y.GetZ();
 			float c_zx = sqrt(std::max(0.0f, c_zx2));
 			float s_z = 0.0f;
@@ -151,6 +150,36 @@ Effekseer::Vec3f SplineGenerator::GetValue(float t) const
 	return a[j] + (b[j] + (c[j] + d[j] * dt) * dt) * dt;
 }
 
+static void FastScale(::Effekseer::Mat43f& mat, float scale)
+{
+	float x = mat.X.GetW();
+	float y = mat.Y.GetW();
+	float z = mat.Z.GetW();
+
+	mat.X *= scale;
+	mat.Y *= scale;
+	mat.Z *= scale;
+
+	mat.X.SetW(x);
+	mat.Y.SetW(y);
+	mat.Z.SetW(z);
+}
+
+static void FastScale(::Effekseer::Mat44f& mat, float scale)
+{
+	float x = mat.X.GetW();
+	float y = mat.Y.GetW();
+	float z = mat.Z.GetW();
+
+	mat.X *= scale;
+	mat.Y *= scale;
+	mat.Z *= scale;
+
+	mat.X.SetW(x);
+	mat.Y.SetW(y);
+	mat.Z.SetW(z);
+}
+
 void ApplyDepthParameters(::Effekseer::Mat43f& mat,
 						  const ::Effekseer::Vec3f& cameraFront,
 						  const ::Effekseer::Vec3f& cameraPos,
@@ -182,8 +211,7 @@ void ApplyDepthParameters(::Effekseer::Mat43f& mat,
 			if (cl != 0.0)
 			{
 				auto scale = (cl - offset) / cl;
-				mat *= scale;
-				mat.SetTranslation(c);
+				FastScale(mat, scale);
 			}
 		}
 
@@ -211,8 +239,7 @@ void ApplyDepthParameters(::Effekseer::Mat43f& mat,
 		if (cl != 0.0)
 		{
 			auto scale = cl / 32.0f * (1.0f - depthParameter->SuppressionOfScalingByDepth) + depthParameter->SuppressionOfScalingByDepth;
-			mat *= scale;
-			mat.SetTranslation(t);
+			FastScale(mat, scale);
 		}
 	}
 }
@@ -315,8 +342,7 @@ void ApplyDepthParameters(::Effekseer::Mat43f& mat,
 			if (cl != 0.0)
 			{
 				auto scale = (cl - offset) / cl;
-				mat *= scale;
-				mat.SetTranslation(t);
+				FastScale(mat, scale);
 			}
 		}
 
@@ -343,8 +369,7 @@ void ApplyDepthParameters(::Effekseer::Mat43f& mat,
 		if (cl != 0.0)
 		{
 			auto scale = cl / 32.0f * (1.0f - depthParameter->SuppressionOfScalingByDepth) + depthParameter->SuppressionOfScalingByDepth;
-			mat *= scale;
-			mat.SetTranslation(t);
+			FastScale(mat, scale);
 		}
 	}
 }
@@ -380,8 +405,7 @@ void ApplyDepthParameters(::Effekseer::Mat44f& mat,
 			if (cl != 0.0)
 			{
 				auto scale = (cl - offset) / cl;
-				mat *= scale;
-				mat.SetTranslation(t);
+				FastScale(mat, scale);
 			}
 		}
 
@@ -408,10 +432,43 @@ void ApplyDepthParameters(::Effekseer::Mat44f& mat,
 		if (cl != 0.0)
 		{
 			auto scale = cl / 32.0f * (1.0f - depthParameter->SuppressionOfScalingByDepth) + depthParameter->SuppressionOfScalingByDepth;
-			mat *= scale;
-			mat.SetTranslation(t);
+			FastScale(mat, scale);
 		}
 	}
+}
+
+void ApplyViewOffset(::Effekseer::Mat43f& mat,
+					 const ::Effekseer::Mat44f& camera,
+					 float distance)
+{
+	::Effekseer::Matrix44 cameraMat;
+	::Effekseer::Matrix44::Inverse(cameraMat, ToStruct(camera));
+
+	::Effekseer::Vec3f ViewOffset = ::Effekseer::Vec3f::Load(cameraMat.Values[3]) + -::Effekseer::Vec3f::Load(cameraMat.Values[2]) * distance;
+
+	::Effekseer::Vec3f localPos = mat.GetTranslation();
+	ViewOffset += (::Effekseer::Vec3f::Load(cameraMat.Values[0]) * localPos.GetX()+ 
+				   ::Effekseer::Vec3f::Load(cameraMat.Values[1]) * localPos.GetY() + 
+				   -::Effekseer::Vec3f::Load(cameraMat.Values[2]) * localPos.GetZ());
+
+	mat.SetTranslation(ViewOffset);
+}
+
+void ApplyViewOffset(::Effekseer::Mat44f& mat,
+					 const ::Effekseer::Mat44f& camera,
+					 float distance)
+{
+	::Effekseer::Matrix44 cameraMat;
+	::Effekseer::Matrix44::Inverse(cameraMat, ToStruct(camera));
+
+	::Effekseer::Vec3f ViewOffset = ::Effekseer::Vec3f::Load(cameraMat.Values[3]) + -::Effekseer::Vec3f::Load(cameraMat.Values[2]) * distance;
+
+	::Effekseer::Vec3f localPos = mat.GetTranslation();
+	ViewOffset += (::Effekseer::Vec3f::Load(cameraMat.Values[0]) * localPos.GetX()+ 
+				   ::Effekseer::Vec3f::Load(cameraMat.Values[1]) * localPos.GetY() + 
+				   -::Effekseer::Vec3f::Load(cameraMat.Values[2]) * localPos.GetZ());
+
+	mat.SetTranslation(ViewOffset);
 }
 
 } // namespace EffekseerRenderer

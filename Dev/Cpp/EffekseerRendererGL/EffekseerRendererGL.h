@@ -5,7 +5,7 @@
 #include <Effekseer.h>
 #include <vector>
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <Windows.h>
 #endif
 
@@ -41,7 +41,7 @@
 
 #else
 
-#if _WIN32
+#if defined(_WIN32)
 #include <GL/gl.h>
 #elif defined(__APPLE__)
 #define GL_SILENCE_DEPRECATION
@@ -69,15 +69,14 @@ enum class OpenGLDeviceType
 	OpenGL3,
 	OpenGLES2,
 	OpenGLES3,
-	Emscripten,
 };
 
 } // namespace EffekseerRendererGL
 
 #endif // __EFFEKSEERRENDERER_GL_BASE_PRE_H__
 
-#ifndef	__EFFEKSEERRENDERER_RENDERER_H__
-#define	__EFFEKSEERRENDERER_RENDERER_H__
+#ifndef __EFFEKSEERRENDERER_RENDERER_H__
+#define __EFFEKSEERRENDERER_RENDERER_H__
 
 //----------------------------------------------------------------------------------
 // Include
@@ -87,6 +86,17 @@ enum class OpenGLDeviceType
 //-----------------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------------
+
+namespace Effekseer
+{
+namespace Backend
+{
+class VertexBuffer;
+class IndexBuffer;
+class GraphicsDevice;
+} // namespace Backend
+} // namespace Effekseer
+
 namespace EffekseerRenderer
 {
 //-----------------------------------------------------------------------------------
@@ -99,14 +109,21 @@ namespace EffekseerRenderer
 class DistortingCallback
 {
 public:
-	DistortingCallback() {}
-	virtual ~DistortingCallback() {}
+	DistortingCallback()
+	{
+	}
+	virtual ~DistortingCallback()
+	{
+	}
 
-	virtual bool OnDistorting() { return false; }
+	virtual bool OnDistorting()
+	{
+		return false;
+	}
 };
 
 /**
-	@brief	
+	@brief
 	\~english A status of UV when particles are rendered.
 	\~japanese パーティクルを描画する時のUVの状態
 */
@@ -137,8 +154,8 @@ class GraphicsDevice : public ::Effekseer::IReference
 public:
 	GraphicsDevice() = default;
 	virtual ~GraphicsDevice() = default;
-};	
-	
+};
+
 class CommandList : public ::Effekseer::IReference
 {
 public:
@@ -157,11 +174,12 @@ public:
 		\~English	notify that new frame is started.
 		\~Japanese	新規フレームが始ったことを通知する。
 	*/
-	virtual void NewFrame() {}
+	virtual void NewFrame()
+	{
+	}
 };
 
-class Renderer
-	: public ::Effekseer::IReference
+class Renderer : public ::Effekseer::IReference
 {
 protected:
 	Renderer();
@@ -171,7 +189,6 @@ protected:
 	Impl* impl = nullptr;
 
 public:
-
 	/**
 		@brief	only for Effekseer backend developer. Effekseer User doesn't need it.
 	*/
@@ -250,7 +267,7 @@ public:
 	/**
 		@brief	Set a projection matrix
 	*/
-	virtual void SetProjectionMatrix( const ::Effekseer::Matrix44& mat );
+	virtual void SetProjectionMatrix(const ::Effekseer::Matrix44& mat);
 
 	/**
 		@brief	Get a camera matrix
@@ -260,7 +277,7 @@ public:
 	/**
 		@brief	Set a camera matrix
 	*/
-	virtual void SetCameraMatrix( const ::Effekseer::Matrix44& mat );
+	virtual void SetCameraMatrix(const ::Effekseer::Matrix44& mat);
 
 	/**
 		@brief	Get a camera projection matrix
@@ -283,7 +300,7 @@ public:
 
 	/**
 		@brief	Set a front direction and position of camera manually
-		@param front (Right Hand) a direction from focus to eye, (Left Hand) a direction from eye to focus, 
+		@param front (Right Hand) a direction from focus to eye, (Left Hand) a direction from eye to focus,
 		@note
 		These are set based on camera matrix automatically.
 		It is failed on some platform.
@@ -318,15 +335,15 @@ public:
 	/**
 		@brief	標準のテクスチャ読込クラスを生成する。
 	*/
-	virtual ::Effekseer::TextureLoader* CreateTextureLoader( ::Effekseer::FileInterface* fileInterface = NULL ) = 0;
+	virtual ::Effekseer::TextureLoader* CreateTextureLoader(::Effekseer::FileInterface* fileInterface = NULL) = 0;
 
 	/**
 		@brief	標準のモデル読込クラスを生成する。
 	*/
-	virtual ::Effekseer::ModelLoader* CreateModelLoader( ::Effekseer::FileInterface* fileInterface = NULL ) = 0;
+	virtual ::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface = NULL) = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english Create default material loader
 	\~japanese 標準のマテリアル読込クラスを生成する。
 
@@ -349,7 +366,7 @@ public:
 	virtual void SetDistortingCallback(DistortingCallback* callback) = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english Get draw call count
 	\~japanese ドローコールの回数を取得する
 	*/
@@ -384,7 +401,7 @@ public:
 	virtual Effekseer::RenderMode GetRenderMode() const;
 
 	/**
-	@brief	
+	@brief
 	\~english Specify a render mode.
 	\~japanese 描画モードを設定する。
 	*/
@@ -437,7 +454,9 @@ public:
 	\~English	specify a command list to render.  This function is available except DirectX9, DirectX11 and OpenGL.
 	\~Japanese	描画に使用するコマンドリストを設定する。この関数はDirectX9、DirectX11、OpenGL以外で使用できる。
 	*/
-	virtual void SetCommandList(CommandList* commandList) {}
+	virtual void SetCommandList(CommandList* commandList)
+	{
+	}
 
 	/**
 	@brief
@@ -454,27 +473,65 @@ public:
 	\~English	Create a proxy texture
 	\~Japanese	代替のテクスチャを生成する
 	*/
-	virtual Effekseer::TextureData* CreateProxyTexture(ProxyTextureType type) { return nullptr; }
+	virtual Effekseer::TextureData* CreateProxyTexture(ProxyTextureType type)
+	{
+		return nullptr;
+	}
 
 	/**
 	@brief
 	\~English	Delete a proxy texture
 	\~Japanese	代替のテクスチャを削除する
 	*/
-	virtual void DeleteProxyTexture(Effekseer::TextureData* data) { }
+	virtual void DeleteProxyTexture(Effekseer::TextureData* data)
+	{
+	}
+};
+
+/**
+@brief	\~English	Model
+		\~Japanese	モデル
+*/
+class Model : public Effekseer::Model
+{
+private:
+public:
+	struct InternalModel
+	{
+		Effekseer::Backend::VertexBuffer* VertexBuffer;
+		Effekseer::Backend::IndexBuffer* IndexBuffer;
+		int32_t VertexCount;
+		int32_t IndexCount;
+		int32_t FaceCount;
+
+		InternalModel();
+		~InternalModel();
+	};
+
+	Effekseer::Backend::GraphicsDevice* graphicsDevice_ = nullptr;
+	InternalModel* InternalModels = nullptr;
+	int32_t ModelCount;
+
+	Model(uint8_t* data, int32_t size, int maximumModelCount, Effekseer::Backend::GraphicsDevice* graphicsDevice);
+
+	~Model() override;
+
+	bool LoadToGPU();
+
+	bool IsLoadedOnGPU = false;
 };
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
+} // namespace EffekseerRenderer
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-#endif	// __EFFEKSEERRENDERER_RENDERER_H__
+#endif // __EFFEKSEERRENDERER_RENDERER_H__
 
-#ifndef	__EFFEKSEERRENDERER_GL_RENDERER_H__
-#define	__EFFEKSEERRENDERER_GL_RENDERER_H__
+#ifndef __EFFEKSEERRENDERER_GL_RENDERER_H__
+#define __EFFEKSEERRENDERER_GL_RENDERER_H__
 
 //----------------------------------------------------------------------------------
 // Include
@@ -494,19 +551,23 @@ class GraphicsDevice;
 
 ::EffekseerRenderer::GraphicsDevice* CreateDevice(OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
 
-::Effekseer::TextureLoader* CreateTextureLoader(::Effekseer::FileInterface* fileInterface = nullptr, ::Effekseer::ColorSpaceType colorSpaceType = ::Effekseer::ColorSpaceType::Gamma);
+::Effekseer::TextureLoader* CreateTextureLoader(::Effekseer::FileInterface* fileInterface = nullptr,
+												::Effekseer::ColorSpaceType colorSpaceType = ::Effekseer::ColorSpaceType::Gamma);
 
-::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface = NULL);
+::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface = NULL, OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
 
 ::Effekseer::MaterialLoader* CreateMaterialLoader(::EffekseerRenderer::GraphicsDevice* graphicsDevice,
 												  ::Effekseer::FileInterface* fileInterface = nullptr);
 
-class Renderer
-	: public ::EffekseerRenderer::Renderer
+class Renderer : public ::EffekseerRenderer::Renderer
 {
 protected:
-	Renderer() {}
-	virtual ~Renderer() {}
+	Renderer()
+	{
+	}
+	virtual ~Renderer()
+	{
+	}
 
 public:
 	/**
@@ -526,8 +587,7 @@ public:
 	\~english	instance
 	\~japanese	インスタンス
 	*/
-	static Renderer* Create(int32_t squareMaxCount,
-							OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
+	static Renderer* Create(int32_t squareMaxCount, OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
 
 	static Renderer* Create(int32_t squareMaxCount, ::EffekseerRenderer::GraphicsDevice* graphicDevice);
 
@@ -551,14 +611,14 @@ public:
 	virtual Effekseer::TextureData* GetBackground() = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english	Specify a background.
 	\~japanese	背景を設定する。
 	*/
 	virtual void SetBackground(GLuint background, bool hasMipmap = false) = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english get a device type
 	\~japanese デバイスの種類を取得する。
 	*/
@@ -572,49 +632,8 @@ public:
 	virtual bool IsVertexArrayObjectSupported() const = 0;
 };
 
+} // namespace EffekseerRendererGL
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-/**
-	@brief	モデル
-*/
-class Model
-	: public Effekseer::Model
-{
-private:
-
-public:
-	struct InternalModel
-	{
-		GLuint		VertexBuffer;
-		GLuint		IndexBuffer;
-		int32_t		VertexCount;
-		int32_t		IndexCount;
-
-		std::vector<uint8_t> delayVertexBuffer;
-		std::vector<uint8_t> delayIndexBuffer;
-
-		InternalModel();
-
-		virtual ~InternalModel();
-
-		bool TryDelayLoad();
-	};
-
-
-	InternalModel*				InternalModels = nullptr;
-	int32_t						ModelCount;
-
-
-	Model(void* data, int32_t size);
-	~Model();
-};
-
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-}
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-#endif	// __EFFEKSEERRENDERER_GL_RENDERER_H__
+#endif // __EFFEKSEERRENDERER_GL_RENDERER_H__

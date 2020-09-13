@@ -7,13 +7,15 @@ namespace EffekseerRendererGL
 {
 
 DeviceObject::DeviceObject(RendererImplemented* renderer, GraphicsDevice* graphicsDevice, bool hasRefCount)
-	: renderer_(renderer), graphicsDevice_(graphicsDevice), hasRefCount_(hasRefCount)
+	: renderer_(renderer)
+	, graphicsDevice_(graphicsDevice)
+	, hasRefCount_(hasRefCount)
 {
 	if (hasRefCount_)
 	{
 		ES_SAFE_ADDREF(renderer_);
 	}
-	ES_SAFE_ADDREF(graphicsDevice_);	
+	ES_SAFE_ADDREF(graphicsDevice_);
 
 	graphicsDevice_->Register(this);
 }
@@ -29,6 +31,9 @@ DeviceObject::~DeviceObject()
 	ES_SAFE_RELEASE(graphicsDevice_);
 }
 
-RendererImplemented* DeviceObject::GetRenderer() const { return renderer_; }
+RendererImplemented* DeviceObject::GetRenderer() const
+{
+	return renderer_;
+}
 
 } // namespace EffekseerRendererGL

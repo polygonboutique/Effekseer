@@ -9,6 +9,7 @@
 #include "Effekseer.Manager.h"
 #include "Effekseer.Matrix43.h"
 #include "Effekseer.Matrix44.h"
+#include "Effekseer.WorkerThread.h"
 #include "Utils/Effekseer.CustomAllocator.h"
 
 namespace Effekseer
@@ -22,13 +23,14 @@ class ManagerImplemented : public Manager, public ReferenceObject
 	friend class InstanceGroup;
 
 private:
-	class DrawSet
+	class alignas(32) DrawSet
 	{
 	public:
 		Effect* ParameterPointer;
 		InstanceContainer* InstanceContainerPointer;
 		InstanceGlobal* GlobalPointer;
 		Culling3D::Object* CullingObjectPointer;
+		int RandomSeed = 0;
 		bool IsPaused;
 		bool IsShown;
 		bool IsAutoDrawing;
@@ -51,9 +53,18 @@ private:
 
 		int32_t Layer = 0;
 
+		//! a time (by 1/60) to progress an effect when Update is called
+		float NextUpdateFrame = 0.0f;
+
+		//! Rate of scale in relation to manager's time
+		float TimeScale = 1.0f;
+
 		//! HACK for GC (Instances must be updated after removing) If you use UpdateHandle, updating instance which is contained removing
 		//! effects is not called. It makes update called forcibly.
 		int32_t UpdateCountAfterRemoving = 0;
+
+		//! a bit mask for group
+		int64_t GroupMask = 0;
 
 		DrawSet(Effect* effect, InstanceContainer* pContainer, InstanceGlobal* pGlobal)
 			: ParameterPointer(effect)
@@ -113,6 +124,8 @@ private:
 	} cullingCurrent, cullingNext;
 
 private:
+	CustomVector<WorkerThread> m_WorkerThreads;
+
 	//! whether does rendering and update handle flipped automatically
 	bool m_autoFlip = true;
 
@@ -124,9 +137,9 @@ private:
 
 	// buffers which is allocated while initializing
 	// 初期化中に確保されたバッファ
-	std::unique_ptr<InstanceChunk[]> reservedChunksBuffer_;
-	std::unique_ptr<uint8_t[]> reservedGroupBuffer_;
-	std::unique_ptr<uint8_t[]> reservedContainerBuffer_;
+	CustomAlignedVector<InstanceChunk> reservedChunksBuffer_;
+	CustomAlignedVector<uint8_t> reservedGroupBuffer_;
+	CustomAlignedVector<uint8_t> reservedContainerBuffer_;
 
 	// pooled instances. Thease are not used and waiting to be used.
 	// プールされたインスタンス。使用されておらず、使用されてるのを待っている。
@@ -141,16 +154,16 @@ private:
 	std::array<int32_t, GenerationsMax> creatableChunkOffsets_;
 
 	// playing objects
-	CustomMap<Handle, DrawSet> m_DrawSets;
+	CustomAlignedMap<Handle, DrawSet> m_DrawSets;
 
 	//! objects which are waiting to be disposed
-	std::array<CustomMap<Handle, DrawSet>, 2> m_RemovingDrawSets;
+	std::array<CustomAlignedMap<Handle, DrawSet>, 2> m_RemovingDrawSets;
 
 	//! objects on rendering
-	CustomVector<DrawSet> m_renderingDrawSets;
+	CustomAlignedVector<DrawSet> m_renderingDrawSets;
 
 	//! objects on rendering
-	CustomMap<Handle, DrawSet> m_renderingDrawSetMaps;
+	CustomAlignedMap<Handle, DrawSet> m_renderingDrawSetMaps;
 
 	// mutex for rendering
 	std::mutex m_renderingMutex;
@@ -219,6 +232,10 @@ public:
 	void ReleaseInstanceContainer(InstanceContainer* container);
 
 	void Destroy() override;
+
+	void LaunchWorkerThreads(uint32_t threadCount) override;
+
+	virtual uintptr_t GetWorkerThreadHandle(uint32_t threadID) override;
 
 	uint32_t GetSequenceNumber() const;
 
@@ -290,6 +307,10 @@ public:
 
 	void SetMaterialLoader(MaterialLoader* loader) override;
 
+	CurveLoader* GetCurveLoader() override;
+
+	void SetCurveLoader(CurveLoader* loader) override;
+
 	void StopEffect(Handle handle) override;
 
 	void StopAllEffects() override;
@@ -348,9 +369,17 @@ public:
 
 	void SetLayer(Handle handle, int32_t layer) override;
 
+	int64_t GetGroupMask(Handle handle) const override;
+
+	void SetGroupMask(Handle handle, int64_t groupmask) override;
+
 	float GetSpeed(Handle handle) const override;
 
 	void SetSpeed(Handle handle, float speed) override;
+
+	void SetTimeScaleByGroup(int64_t groupmask, float timeScale) override;
+
+	void SetTimeScaleByHandle(Handle handle, float timeScale) override;
 
 	void SetAutoDrawing(Handle handle, bool autoDraw) override;
 
@@ -358,11 +387,17 @@ public:
 
 	void Update(float deltaFrame) override;
 
+	void Update(const UpdateParameter& parameter) override;
+
+	void DoUpdate(const UpdateParameter& parameter);
+
 	void BeginUpdate() override;
 
 	void EndUpdate() override;
 
 	void UpdateHandle(Handle handle, float deltaFrame = 1.0f) override;
+
+	void UpdateHandleToMoveToFrame(Handle handle, float frame) override;
 
 private:
 	void UpdateInstancesByInstanceGlobal(const DrawSet& drawSet);
@@ -374,6 +409,10 @@ private:
 
 	//! whether container is disabled while rendering because of a distance between the effect and a camera
 	bool IsClippedWithDepth(DrawSet& drawSet, InstanceContainer* container, const Manager::DrawParameter& drawParameter);
+
+	void StopWithoutRemoveDrawSet(DrawSet& drawSet);
+
+	void ResetAndPlayWithDataSet(DrawSet& drawSet, float frame);
 
 public:
 	void Draw(const Manager::DrawParameter& drawParameter) override;
@@ -410,9 +449,18 @@ public:
 
 	void RessignCulling() override;
 
-	virtual int GetRef() override { return ReferenceObject::GetRef(); }
-	virtual int AddRef() override { return ReferenceObject::AddRef(); }
-	virtual int Release() override { return ReferenceObject::Release(); }
+	virtual int GetRef() override
+	{
+		return ReferenceObject::GetRef();
+	}
+	virtual int AddRef() override
+	{
+		return ReferenceObject::AddRef();
+	}
+	virtual int Release() override
+	{
+		return ReferenceObject::Release();
+	}
 };
 
 } // namespace Effekseer

@@ -26,6 +26,20 @@ FILE(GLOB cpps
 	*.cxx
 )
 
+list(APPEND cpps
+    RenderedEffectGenerator.cpp
+	Graphics/CommandList.cpp
+    Graphics/RenderPass.cpp
+    Recorder/Recorder.cpp
+)
+
+list(APPEND hs
+    RenderedEffectGenerator.h
+	Graphics/CommandList.h
+    Graphics/RenderPass.h
+    Recorder/Recorder.h
+)
+
 # OS Dependency
 if (WIN32)
 list(APPEND hs
@@ -162,13 +176,18 @@ add_dependencies(Viewer
 	ExternalProject_glfw 
 	ExternalProject_OpenSoundMixer)
 
-if(NOT APPLE)
+if(WIN32)
     add_dependencies(Viewer ExternalProject_glew)
 endif()
 
 link_directories(
     ${PROJECT_SOURCE_DIR}/../lib/
 )
+
+
+if(CLANG_FORMAT_ENABLED)
+    clang_format(Viewer)
+endif()
 
 if (WIN32)
 

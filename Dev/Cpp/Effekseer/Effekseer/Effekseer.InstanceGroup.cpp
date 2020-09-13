@@ -1,11 +1,7 @@
-﻿
+﻿#include "Effekseer.InstanceGroup.h"
 
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
 #include "Effekseer.ManagerImplemented.h"
 
-#include "Effekseer.InstanceGroup.h"
 #include "Effekseer.Instance.h"
 #include "Effekseer.InstanceContainer.h"
 #include "Effekseer.InstanceGlobal.h"
@@ -18,19 +14,18 @@
 namespace Effekseer
 {
 
-
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-InstanceGroup::InstanceGroup( Manager* manager, EffectNode* effectNode, InstanceContainer* container, InstanceGlobal* global )
-	: m_manager		( (ManagerImplemented*)manager )
-	, m_effectNode((EffectNodeImplemented*) effectNode)
-	, m_container	( container )
-	, m_global		( global )
-	, m_time		( 0 )
-	, IsReferencedFromInstance	( true )
-	, NextUsedByInstance	( NULL )
-	, NextUsedByContainer	( NULL )
+InstanceGroup::InstanceGroup(Manager* manager, EffectNode* effectNode, InstanceContainer* container, InstanceGlobal* global)
+	: m_manager((ManagerImplemented*)manager)
+	, m_effectNode((EffectNodeImplemented*)effectNode)
+	, m_container(container)
+	, m_global(global)
+	, m_time(0)
+	, IsReferencedFromInstance(true)
+	, NextUsedByInstance(NULL)
+	, NextUsedByContainer(NULL)
 {
 	parentMatrix_ = Mat43f::Identity;
 }
@@ -43,6 +38,11 @@ InstanceGroup::~InstanceGroup()
 	RemoveForcibly();
 }
 
+void InstanceGroup::NotfyEraseInstance()
+{
+	m_global->DecInstanceCount();
+}
+
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
@@ -50,11 +50,11 @@ Instance* InstanceGroup::CreateInstance()
 {
 	Instance* instance = NULL;
 
-	instance = m_manager->CreateInstance( m_effectNode, m_container, this );
-	
-	if( instance )
+	instance = m_manager->CreateInstance(m_effectNode, m_container, this);
+
+	if (instance)
 	{
-		m_instances.push_back( instance );
+		m_instances.push_back(instance);
 		m_global->IncInstanceCount();
 	}
 	return instance;
@@ -65,7 +65,7 @@ Instance* InstanceGroup::CreateInstance()
 //----------------------------------------------------------------------------------
 Instance* InstanceGroup::GetFirst()
 {
-	if( m_instances.size() > 0 )
+	if (m_instances.size() > 0)
 	{
 		return m_instances.front();
 	}
@@ -92,7 +92,7 @@ void InstanceGroup::Update(bool shown)
 		if (instance->m_State != INSTANCE_STATE_ACTIVE)
 		{
 			it = m_instances.erase(it);
-			m_global->DecInstanceCount();
+			NotfyEraseInstance();
 		}
 		else
 		{
@@ -106,7 +106,7 @@ void InstanceGroup::Update(bool shown)
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void InstanceGroup::SetBaseMatrix( const Mat43f& mat )
+void InstanceGroup::SetBaseMatrix(const Mat43f& mat)
 {
 	for (auto instance : m_instances)
 	{
@@ -120,7 +120,7 @@ void InstanceGroup::SetBaseMatrix( const Mat43f& mat )
 
 void InstanceGroup::SetParentMatrix(const Mat43f& mat)
 {
-	BindType tType = m_effectNode->CommonValues.TranslationBindType;
+	TranslationParentBindType tType = m_effectNode->CommonValues.TranslationBindType;
 	BindType rType = m_effectNode->CommonValues.RotationBindType;
 	BindType sType = m_effectNode->CommonValues.ScalingBindType;
 
@@ -134,7 +134,7 @@ void InstanceGroup::SetParentMatrix(const Mat43f& mat)
 	{
 		parentMatrix_ = rootGroup->GetParentMatrix();
 	}
-	else if (tType == BindType::WhenCreating && rType == BindType::WhenCreating && sType == BindType::WhenCreating)
+	else if (tType == BindType::WhenCreating || tType == TranslationParentBindType::WhenCreating_FollowParent && rType == BindType::WhenCreating && sType == BindType::WhenCreating)
 	{
 		// don't do anything
 	}
@@ -153,6 +153,10 @@ void InstanceGroup::SetParentMatrix(const Mat43f& mat)
 			parentTranslation_ = rootGroup->GetParentTranslation();
 		}
 		else if (tType == BindType::NotBind)
+		{
+			parentTranslation_ = Vec3f(0.0f, 0.0f, 0.0f);
+		}
+		else if (tType == TranslationParentBindType::NotBind_FollowParent)
 		{
 			parentTranslation_ = Vec3f(0.0f, 0.0f, 0.0f);
 		}
@@ -202,6 +206,7 @@ void InstanceGroup::KillAllInstances()
 	{
 		auto instance = m_instances.front();
 		m_instances.pop_front();
+		NotfyEraseInstance();
 
 		if (instance->GetState() == INSTANCE_STATE_ACTIVE)
 		{
@@ -213,7 +218,7 @@ void InstanceGroup::KillAllInstances()
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
+} // namespace Effekseer
 
 //----------------------------------------------------------------------------------
 //

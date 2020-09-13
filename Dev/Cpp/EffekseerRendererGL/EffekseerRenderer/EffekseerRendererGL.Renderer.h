@@ -1,12 +1,12 @@
 ﻿
-#ifndef	__EFFEKSEERRENDERER_GL_RENDERER_H__
-#define	__EFFEKSEERRENDERER_GL_RENDERER_H__
+#ifndef __EFFEKSEERRENDERER_GL_RENDERER_H__
+#define __EFFEKSEERRENDERER_GL_RENDERER_H__
 
 //----------------------------------------------------------------------------------
 // Include
 //----------------------------------------------------------------------------------
-#include "EffekseerRendererGL.Base.h"
 #include "../../EffekseerRendererCommon/EffekseerRenderer.Renderer.h"
+#include "EffekseerRendererGL.Base.h"
 
 //----------------------------------------------------------------------------------
 // Lib
@@ -22,19 +22,23 @@ class GraphicsDevice;
 
 ::EffekseerRenderer::GraphicsDevice* CreateDevice(OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
 
-::Effekseer::TextureLoader* CreateTextureLoader(::Effekseer::FileInterface* fileInterface = nullptr, ::Effekseer::ColorSpaceType colorSpaceType = ::Effekseer::ColorSpaceType::Gamma);
+::Effekseer::TextureLoader* CreateTextureLoader(::Effekseer::FileInterface* fileInterface = nullptr,
+												::Effekseer::ColorSpaceType colorSpaceType = ::Effekseer::ColorSpaceType::Gamma);
 
-::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface = NULL);
+::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface = NULL, OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
 
 ::Effekseer::MaterialLoader* CreateMaterialLoader(::EffekseerRenderer::GraphicsDevice* graphicsDevice,
 												  ::Effekseer::FileInterface* fileInterface = nullptr);
 
-class Renderer
-	: public ::EffekseerRenderer::Renderer
+class Renderer : public ::EffekseerRenderer::Renderer
 {
 protected:
-	Renderer() {}
-	virtual ~Renderer() {}
+	Renderer()
+	{
+	}
+	virtual ~Renderer()
+	{
+	}
 
 public:
 	/**
@@ -54,8 +58,7 @@ public:
 	\~english	instance
 	\~japanese	インスタンス
 	*/
-	static Renderer* Create(int32_t squareMaxCount,
-							OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
+	static Renderer* Create(int32_t squareMaxCount, OpenGLDeviceType deviceType = OpenGLDeviceType::OpenGL2);
 
 	static Renderer* Create(int32_t squareMaxCount, ::EffekseerRenderer::GraphicsDevice* graphicDevice);
 
@@ -79,14 +82,14 @@ public:
 	virtual Effekseer::TextureData* GetBackground() = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english	Specify a background.
 	\~japanese	背景を設定する。
 	*/
 	virtual void SetBackground(GLuint background, bool hasMipmap = false) = 0;
 
 	/**
-	@brief	
+	@brief
 	\~english get a device type
 	\~japanese デバイスの種類を取得する。
 	*/
@@ -100,49 +103,8 @@ public:
 	virtual bool IsVertexArrayObjectSupported() const = 0;
 };
 
+} // namespace EffekseerRendererGL
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-/**
-	@brief	モデル
-*/
-class Model
-	: public Effekseer::Model
-{
-private:
-
-public:
-	struct InternalModel
-	{
-		GLuint		VertexBuffer;
-		GLuint		IndexBuffer;
-		int32_t		VertexCount;
-		int32_t		IndexCount;
-
-		std::vector<uint8_t> delayVertexBuffer;
-		std::vector<uint8_t> delayIndexBuffer;
-
-		InternalModel();
-
-		virtual ~InternalModel();
-
-		bool TryDelayLoad();
-	};
-
-
-	InternalModel*				InternalModels = nullptr;
-	int32_t						ModelCount;
-
-
-	Model(void* data, int32_t size);
-	~Model();
-};
-
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-}
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-#endif	// __EFFEKSEERRENDERER_GL_RENDERER_H__
+#endif // __EFFEKSEERRENDERER_GL_RENDERER_H__

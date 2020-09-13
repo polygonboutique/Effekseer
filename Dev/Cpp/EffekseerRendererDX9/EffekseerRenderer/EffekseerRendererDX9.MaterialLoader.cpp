@@ -12,7 +12,10 @@
 namespace EffekseerRendererDX9
 {
 
-MaterialLoader::MaterialLoader(Renderer* renderer, ::Effekseer::FileInterface* fileInterface) : fileInterface_(fileInterface)
+const int32_t ModelRendererInstanceCount = 10;
+
+MaterialLoader::MaterialLoader(Renderer* renderer, ::Effekseer::FileInterface* fileInterface)
+	: fileInterface_(fileInterface)
 {
 	if (fileInterface == nullptr)
 	{
@@ -23,7 +26,10 @@ MaterialLoader::MaterialLoader(Renderer* renderer, ::Effekseer::FileInterface* f
 	ES_SAFE_ADDREF(renderer_);
 }
 
-MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
+MaterialLoader ::~MaterialLoader()
+{
+	ES_SAFE_RELEASE(renderer_);
+}
 
 ::Effekseer::MaterialData* MaterialLoader::Load(const EFK_CHAR* path)
 {
@@ -91,18 +97,15 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 	for (int32_t st = 0; st < shaderTypeCount; st++)
 	{
 		Shader* shader = nullptr;
-		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, false, st, 20);
+		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, false, st, ModelRendererInstanceCount);
 
 		if (materialData->IsSimpleVertex)
 		{
 			// Pos(3) Color(1) UV(2)
-			D3DVERTEXELEMENT9 decl[] =
-			{
-				{ 0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-				{ 0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
-				{ 0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-				D3DDECL_END()
-			};
+			D3DVERTEXELEMENT9 decl[] = {{0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+										{0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0},
+										{0, 16, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
+										D3DDECL_END()};
 
 			shader = Shader::Create(static_cast<RendererImplemented*>(renderer_),
 									(uint8_t*)binary->GetVertexShaderData(shaderTypes[st]),
@@ -110,25 +113,21 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 									(uint8_t*)binary->GetPixelShaderData(shaderTypes[st]),
 									binary->GetPixelShaderSize(shaderTypes[st]),
 									"MaterialStandardRenderer",
-									decl);
+									decl,
+									true);
 		}
 		else
 		{
 			// Pos(3) Color(1) Normal(1) Tangent(1) UV(2) UV(2)
-			D3DVERTEXELEMENT9 decl[] =
-			{
-				{0,	sizeof(float) * 0,	D3DDECLTYPE_FLOAT3,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,	0},
-				{0,	sizeof(float) * 3,	D3DDECLTYPE_D3DCOLOR,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	0},
-				{0,	sizeof(float) * 4,	D3DDECLTYPE_D3DCOLOR,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	1},
-				{0,	sizeof(float) * 5,	D3DDECLTYPE_D3DCOLOR,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	2},
-				{0,	sizeof(float) * 6,	D3DDECLTYPE_FLOAT2,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	0},
-				{0, sizeof(float) * 8, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
-				{0,	0,	D3DDECLTYPE_FLOAT2,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	2},
-				{0,	0,	D3DDECLTYPE_FLOAT2,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	3},
-				D3DDECL_END()
-			};
-
-
+			D3DVERTEXELEMENT9 decl[] = {{0, sizeof(float) * 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+										{0, sizeof(float) * 3, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0},
+										{0, sizeof(float) * 4, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 1},
+										{0, sizeof(float) * 5, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 2},
+										{0, sizeof(float) * 6, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
+										{0, sizeof(float) * 8, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1},
+										{0, 0, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 2},
+										{0, 0, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 3},
+										D3DDECL_END()};
 
 			int32_t offset = 40;
 			int count = 6;
@@ -137,7 +136,7 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 			auto getFormat = [](int32_t i) -> D3DDECLTYPE {
 				if (i == 1)
 					assert(0);
-					return D3DDECLTYPE_FLOAT2;
+				return D3DDECLTYPE_FLOAT2;
 				if (i == 2)
 					return D3DDECLTYPE_FLOAT2;
 				if (i == 3)
@@ -150,7 +149,7 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 			{
 				decl[count].Type = getFormat(material.GetCustomData1Count());
 				decl[count].Offset = offset;
-				decl[count].UsageIndex= index;
+				decl[count].UsageIndex = index;
 				index++;
 				count++;
 				offset += sizeof(float) * material.GetCustomData1Count();
@@ -175,7 +174,8 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 									(uint8_t*)binary->GetPixelShaderData(shaderTypes[st]),
 									binary->GetPixelShaderSize(shaderTypes[st]),
 									"MaterialStandardRenderer",
-									decl);
+									decl,
+									true);
 		}
 
 		if (shader == nullptr)
@@ -185,10 +185,8 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 		auto pixelUniformSize = parameterGenerator.PixelShaderUniformBufferSize;
 
 		shader->SetVertexConstantBufferSize(vertexUniformSize);
-		shader->SetVertexRegisterCount(vertexUniformSize / (sizeof(float) * 4));
 
 		shader->SetPixelConstantBufferSize(pixelUniformSize);
-		shader->SetPixelRegisterCount(pixelUniformSize / (sizeof(float) * 4));
 
 		materialData->TextureCount = material.GetTextureCount();
 		materialData->UniformCount = material.GetUniformCount();
@@ -205,19 +203,16 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 
 	for (int32_t st = 0; st < shaderTypeCount; st++)
 	{
-		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, true, st, 20);
+		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, true, st, ModelRendererInstanceCount);
 
-	D3DVERTEXELEMENT9 decl[] =
-	{
-		{0,	0,	D3DDECLTYPE_FLOAT3,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,	0},
-		{0,	12,	D3DDECLTYPE_FLOAT3,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	0},
-		{0,	24,	D3DDECLTYPE_FLOAT3,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	1},
-		{0,	36,	D3DDECLTYPE_FLOAT3,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	2},
-		{0,	48,	D3DDECLTYPE_FLOAT2,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	0},
-		{0, 56, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 3 },
-		{0,	60,	D3DDECLTYPE_UBYTE4,		D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDINDICES,	0},
-		D3DDECL_END()
-	};
+		D3DVERTEXELEMENT9 decl[] = {{0, 0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+									{0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0},
+									{0, 24, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 1},
+									{0, 36, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 2},
+									{0, 48, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
+									{0, 56, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 3},
+									{1, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BLENDINDICES, 0},
+									D3DDECL_END()};
 
 		// compile
 		std::string log;
@@ -228,7 +223,8 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 									 (uint8_t*)binary->GetPixelShaderData(shaderTypesModel[st]),
 									 binary->GetPixelShaderSize(shaderTypesModel[st]),
 									 "MaterialStandardModelRenderer",
-									 decl);
+									 decl,
+									 false);
 		if (shader == nullptr)
 			return false;
 
@@ -236,10 +232,8 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 		auto pixelUniformSize = parameterGenerator.PixelShaderUniformBufferSize;
 
 		shader->SetVertexConstantBufferSize(vertexUniformSize);
-		shader->SetVertexRegisterCount(vertexUniformSize / (sizeof(float) * 4));
 
 		shader->SetPixelConstantBufferSize(pixelUniformSize);
-		shader->SetPixelRegisterCount(pixelUniformSize / (sizeof(float) * 4));
 
 		if (st == 0)
 		{
@@ -314,4 +308,4 @@ void MaterialLoader::Unload(::Effekseer::MaterialData* data)
 	ES_SAFE_DELETE(data);
 }
 
-} // namespace EffekseerRendererDX11
+} // namespace EffekseerRendererDX9

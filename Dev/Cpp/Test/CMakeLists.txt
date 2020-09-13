@@ -1,4 +1,4 @@
-﻿
+
 cmake_minimum_required(VERSION 3.10)
 
 project(Test)
@@ -29,6 +29,20 @@ if(BUILD_DX12)
     list(APPEND effekseer_test_src
         Runtime/EffectPlatformDX12.h
         Runtime/EffectPlatformDX12.cpp
+    )
+endif()
+
+if(BUILD_METAL)
+    list(APPEND effekseer_test_src
+        Runtime/EffectPlatformMetal.h
+        Runtime/EffectPlatformMetal.mm
+    )
+endif()
+
+if(BUILD_VULKAN)
+    list(APPEND effekseer_test_src
+        Runtime/EffectPlatformVulkan.h
+        Runtime/EffectPlatformVulkan.cpp
     )
 endif()
 
@@ -77,6 +91,15 @@ if(BUILD_DX12)
     list(APPEND common_lib EffekseerRendererDX12)
 endif()
 
+
+if(BUILD_METAL)
+    list(APPEND common_lib EffekseerRendererMetal)
+endif()
+
+if(BUILD_VULKAN)
+    list(APPEND common_lib EffekseerRendererVulkan)
+endif()
+
 if (MSVC)
 else()
     find_package(Threads REQUIRED)
@@ -121,21 +144,50 @@ endif()
 add_executable(Test ${effekseer_test_src} )
 target_link_directories(Test PRIVATE ${EFK_THIRDPARTY_LIBRARY_DIRECTORIES})
 
-if (MSVC)
+if(BUILD_VULKAN)
+    find_package(Vulkan REQUIRED)
+
+    target_include_directories(
+        Test
+        PRIVATE
+        ${Vulkan_INCLUDE_DIRS}
+    )
+    
+    target_link_libraries(
+        Test
+        ${Vulkan_LIBRARIES}
+    )
+
+    # TODO Improve it
+    target_link_libraries(
+        Test
+        glslang
+        SPIRV
+        OGLCompiler
+        OSDependent
+    )
+    
+    target_link_directories(
+        Test
+        PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/LLGI/EP/Install/glslang/lib
+    )
+endif()
+
+add_dependencies(Test ExternalProject_glfw)
+
+if (BUILD_WITH_POSTFIX)
 target_link_libraries(
     Test
     ${common_lib}
     debug glfw3d
-    debug OpenSoundMixerd
     optimized glfw3
-    optimized OpenSoundMixer
 )
 else()
 target_link_libraries(
     Test
     ${common_lib}
     glfw3
-    OpenSoundMixer
 )
 endif()
 
@@ -157,7 +209,14 @@ endif()
 
 FilterFolder("${effekseer_test_src}")
 
+if(CLANG_FORMAT_ENABLED)
+    clang_format(Test)
+endif()
+
 if(USE_LIBPNG_LOADER)
+    add_dependencies(Test ExternalProject_libpng)
+
+
     target_link_directories(
         ${PROJECT_NAME}
         PRIVATE

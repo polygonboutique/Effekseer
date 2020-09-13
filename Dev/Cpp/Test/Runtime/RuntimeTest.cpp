@@ -9,8 +9,13 @@
 #include "EffectPlatformGL.h"
 #elif defined(__APPLE__)
 #include "EffectPlatformGL.h"
+#include "EffectPlatformMetal.h"
 #else
 #include "EffectPlatformGL.h"
+#endif
+
+#ifdef __EFFEKSEER_BUILD_VULKAN__
+#include "EffectPlatformVulkan.h"
 #endif
 
 #include "../Effekseer/Effekseer/Effekseer.Base.h"
@@ -59,6 +64,18 @@ void BasicRuntimeTestPlatform(EffectPlatform* platform, std::string baseResultPa
 		platform->StopAllEffects();
 	};
 
+	auto single16Test = [&](const char16_t* name, const char* savename) -> void {
+		srand(0);
+		platform->Play((GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/16/" + name + u".efkefc").c_str());
+
+		for (size_t i = 0; i < 30; i++)
+		{
+			platform->Update();
+		}
+		platform->TakeScreenshot((std::string(baseResultPath) + savename + suffix + ".png").c_str());
+		platform->StopAllEffects();
+	};
+
 	single10Test(u"SimpleLaser", "SimpleLaser");
 	single10Test(u"FCurve_Parameters1", "FCurve_Parameters1");
 	single10Test(u"Ribbon_Parameters1", "Ribbon_Parameters1");
@@ -73,6 +90,19 @@ void BasicRuntimeTestPlatform(EffectPlatform* platform, std::string baseResultPa
 	single15Test(u"Material_Sampler1", "Material_Sampler1");
 	single15Test(u"Material_Refraction", "Material_Refraction");
 	single15Test(u"Material_WorldPositionOffset", "Material_WorldPositionOffset");
+	single15Test(u"BasicRenderSettings_Blend", "BasicRenderSettings_Blend");
+	single15Test(u"ForceFieldLocal_Turbulence1", "ForceFieldLocal_Turbulence1");
+	single15Test(u"Material_FresnelRotatorPolarCoords", "Material_FresnelRotatorPolarCoords");
+
+	single15Test(u"Update_Easing", "Update_Easing");
+	single15Test(u"Update_MultiModel", "Update_MultiModel");
+
+	{
+		single16Test(u"Flip01", "Flip01");
+		single16Test(u"AlphaBlendTexture01", "AlphaBlendTexture01");
+		single16Test(u"AlphaCutoffEdgeColor01", "AlphaCutoffEdgeColor01");
+		single16Test(u"TGA01", "TGA01");
+	}
 }
 
 void BasicRuntimeDeviceLostTest()
@@ -117,7 +147,11 @@ void BasicRuntimeDeviceLostTest()
 void StartingFrameTest()
 {
 	srand(0);
+#ifdef _WIN32
+	auto platform = std::make_shared<EffectPlatformDX11>();
+#else
 	auto platform = std::make_shared<EffectPlatformGL>();
+#endif
 
 	EffectPlatformInitializingParameter param;
 
@@ -138,7 +172,11 @@ void UpdateHandleTest()
 {
 	{
 		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
 		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
 
 		EffectPlatformInitializingParameter param;
 
@@ -170,7 +208,11 @@ void UpdateHandleTest()
 
 	{
 		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
 		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
 
 		EffectPlatformInitializingParameter param;
 		param.IsUpdatedByHandle = true;
@@ -204,7 +246,11 @@ void UpdateHandleTest()
 	// Check memory leak
 	{
 		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
 		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
 
 		EffectPlatformInitializingParameter param;
 		param.IsUpdatedByHandle = true;
@@ -235,8 +281,11 @@ void PlaybackSpeedTest()
 {
 	{
 		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
 		auto platform = std::make_shared<EffectPlatformGL>();
-
+#endif
 		EffectPlatformInitializingParameter param;
 
 		platform->Initialize(param);
@@ -255,7 +304,11 @@ void PlaybackSpeedTest()
 
 	{
 		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
 		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
 
 		EffectPlatformInitializingParameter param;
 		param.IsUpdatedByHandle = true;
@@ -275,48 +328,298 @@ void PlaybackSpeedTest()
 	}
 }
 
-void BasicRuntimeTest()
+void MassPlayTest()
 {
-#ifdef _WIN32
-#ifdef __EFFEKSEER_BUILD_DX12__
 	{
-		auto platform = std::make_shared<EffectPlatformDX12>();
-		BasicRuntimeTestPlatform(platform.get(), "", "_DX12");
+		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
+		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
+
+		EffectPlatformInitializingParameter param;
+		param.InstanceCount = 1;
+
+		platform->Initialize(param);
+
+		for (size_t i = 0; i < 20; i++)
+		{
+			platform->Play((GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/10/SimpleLaser.efk").c_str());
+			platform->Update();
+		}
+
+		platform->Terminate();
+	}
+
+	{
+		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
+		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
+
+		EffectPlatformInitializingParameter param;
+		param.InstanceCount = 10;
+
+		platform->Initialize(param);
+
+		for (size_t i = 0; i < 20; i++)
+		{
+			platform->Play((GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/10/SimpleLaser.efk").c_str());
+			platform->Update();
+		}
+
+		platform->Terminate();
+	}
+
+	{
+		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
+		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
+
+		EffectPlatformInitializingParameter param;
+		param.InstanceCount = 100;
+		param.IsUpdatedByHandle = true;
+		platform->Initialize(param);
+
+		for (size_t i = 0; i < 20; i++)
+		{
+			platform->Play(
+				(GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/Memory/DestroyWhenNoMoreChildren.efkefc").c_str());
+			platform->Update();
+		}
+
+		platform->Terminate();
+	}
+}
+
+void ReloadTest()
+{
+	{
+		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
+		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
+
+		EffectPlatformInitializingParameter param;
+
+		platform->Initialize(param);
+
+		auto handle = platform->Play((GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/10/SimpleLaser.efk").c_str());
+
+		for (size_t i = 0; i < 20; i++)
+		{
+			platform->Update();
+		}
+
+		auto restCount1 = platform->GetManager()->GetInstanceCount(handle);
+		platform->TakeScreenshot("Reload_0.png");
+
+		platform->GetEffects()[0]->Reload((GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/10/SimpleLaser.efk").c_str());
+
+		//platform->Update();
+
+		platform->Draw();
+
+		auto restCount2 = platform->GetManager()->GetInstanceCount(handle);
+		platform->TakeScreenshot("Reload_1.png");
+
+		assert(restCount1 == restCount2);
+
+		platform->Terminate();
+	}
+}
+
+void UpdateToMoveTest()
+{
+	{
+		srand(0);
+#ifdef _WIN32
+		auto platform = std::make_shared<EffectPlatformDX11>();
+#else
+		auto platform = std::make_shared<EffectPlatformGL>();
+#endif
+
+		EffectPlatformInitializingParameter param;
+		platform->Initialize(param);
+
+		auto handle = platform->Play((GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/10/SimpleLaser.efk").c_str());
+
+		//
+		for (size_t i = 0; i < 20; i++)
+		{
+			platform->Update();
+		}
+
+		platform->TakeScreenshot("UpdateToMove_0.png");
+
+		for (size_t i = 0; i < 10; i++)
+		{
+			platform->Update();
+		}
+
+		//
+		platform->GetManager()->BeginUpdate();
+
+		platform->GetManager()->UpdateHandleToMoveToFrame(handle, 19);
+
+		platform->GetManager()->EndUpdate();
+
+		platform->Update();
+
+		platform->TakeScreenshot("UpdateToMove_1.png");
+
+		//
+		platform->GetManager()->BeginUpdate();
+
+		platform->GetManager()->UpdateHandleToMoveToFrame(handle, 10);
+		platform->GetManager()->UpdateHandleToMoveToFrame(handle, 19);
+
+		platform->GetManager()->EndUpdate();
+
+		platform->Update();
+
+		platform->TakeScreenshot("UpdateToMove_2.png");
+
+		platform->Terminate();
+	}
+}
+
+void BasicRuntimeTest(bool onCI)
+{
+
+#ifdef __EFFEKSEER_BUILD_VULKAN__
+	{
+		auto platform = std::make_shared<EffectPlatformVulkan>();
+		BasicRuntimeTestPlatform(platform.get(), "", "_Vulkan");
 		platform->Terminate();
 	}
 #endif
 
-	{
-		auto platform = std::make_shared<EffectPlatformDX9>();
-		BasicRuntimeTestPlatform(platform.get(), "", "_DX9");
-		platform->Terminate();
-	}
-
+#ifdef _WIN32
 	{
 		auto platform = std::make_shared<EffectPlatformDX11>();
 		BasicRuntimeTestPlatform(platform.get(), "", "_DX11");
 		platform->Terminate();
 	}
-
+	if (!onCI)
 	{
-		auto platform = std::make_shared<EffectPlatformGL>();
-		BasicRuntimeTestPlatform(platform.get(), "", "_GL");
-		platform->Terminate();
+
+#ifdef __EFFEKSEER_BUILD_DX12__
+		{
+			auto platform = std::make_shared<EffectPlatformDX12>();
+			BasicRuntimeTestPlatform(platform.get(), "", "_DX12");
+			platform->Terminate();
+		}
+#endif
+
+		{
+			auto platform = std::make_shared<EffectPlatformDX9>();
+			BasicRuntimeTestPlatform(platform.get(), "", "_DX9");
+			platform->Terminate();
+		}
+
+		{
+			auto platform = std::make_shared<EffectPlatformGL>();
+			BasicRuntimeTestPlatform(platform.get(), "", "_GL");
+			platform->Terminate();
+		}
 	}
 
 #elif defined(__APPLE__)
+
+
+    
+	{
+		auto platform = std::make_shared<EffectPlatformMetal>();
+		BasicRuntimeTestPlatform(platform.get(), "", "_Metal");
+		platform->Terminate();
+	}
+
 	{
 		auto platform = std::make_shared<EffectPlatformGL>();
 		BasicRuntimeTestPlatform(platform.get(), "", "_GL");
 		platform->Terminate();
 	}
+
 #else
+#ifndef __EFFEKSEER_BUILD_VERSION16__
 	{
 		auto platform = std::make_shared<EffectPlatformGL>();
 		BasicRuntimeTestPlatform(platform.get(), "", "_GL");
 		platform->Terminate();
 	}
 #endif
+#endif
+}
+
+void InstanceDisposeTestPlatform(EffectPlatform* platform)
+{
+	EffectPlatformInitializingParameter param;
+	platform->Initialize(param);
+
+	{
+		auto effect = Effekseer::Effect::Create(
+			platform->GetManager(), (GetDirectoryPathAsU16(__FILE__) + u"../../../../TestData/Effects/14/Model_Parameters1.efk").c_str());
+
+		ES_SAFE_RELEASE(effect);
+	}
+}
+
+void InstanceDisposeTest(bool onCI)
+{
+#ifdef __EFFEKSEER_BUILD_VULKAN__
+	{
+		auto platform = std::make_shared<EffectPlatformVulkan>();
+		InstanceDisposeTestPlatform(platform.get());
+		platform->Terminate();
+	}
+#endif
+
+#ifdef _WIN32
+#ifdef __EFFEKSEER_BUILD_DX12__
+	if (!onCI)
+	{
+		auto platform = std::make_shared<EffectPlatformDX12>();
+		InstanceDisposeTestPlatform(platform.get());
+		platform->Terminate();
+	}
+#endif
+
+	if (!onCI)
+	{
+		auto platform = std::make_shared<EffectPlatformDX9>();
+		InstanceDisposeTestPlatform(platform.get());
+		platform->Terminate();
+	}
+
+	{
+		auto platform = std::make_shared<EffectPlatformDX11>();
+		InstanceDisposeTestPlatform(platform.get());
+		platform->Terminate();
+	}
+
+#elif defined(__APPLE__)
+	{
+		auto platform = std::make_shared<EffectPlatformMetal>();
+		InstanceDisposeTestPlatform(platform.get());
+		platform->Terminate();
+	}
+#endif
+
+	if (!onCI)
+	{
+		auto platform = std::make_shared<EffectPlatformGL>();
+		InstanceDisposeTestPlatform(platform.get());
+		platform->Terminate();
+	}
 }
 
 void CustomAllocatorTest()

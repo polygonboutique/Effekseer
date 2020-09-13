@@ -5,6 +5,7 @@
 #include "../EffekseerRendererCommon/EffekseerRenderer.Renderer.h"
 #include "EffekseerRendererLLGI.Base.h"
 
+#include "GraphicsDevice.h"
 #include <LLGI.CommandList.h>
 #include <LLGI.Constantbuffer.h>
 #include <LLGI.Graphics.h>
@@ -22,21 +23,33 @@ class GraphicsDevice;
 
 struct FixedShader
 {
-	std::vector<LLGI::DataStructure> StandardTexture_VS;
-	std::vector<LLGI::DataStructure> StandardLightingTexture_VS;
-	std::vector<LLGI::DataStructure> StandardDistortedTexture_VS;
+	std::vector<LLGI::DataStructure> SpriteUnlit_VS;
+	std::vector<LLGI::DataStructure> SpriteLit_VS;
+	std::vector<LLGI::DataStructure> SpriteDistortion_VS;
+	std::vector<LLGI::DataStructure> ModelUnlit_VS;
+	std::vector<LLGI::DataStructure> ModelLit_VS;
+	std::vector<LLGI::DataStructure> ModelDistortion_VS;
 
-	std::vector<LLGI::DataStructure> ModelShaderLightingTextureNormal_VS;
-	std::vector<LLGI::DataStructure> ModelShaderTexture_VS;
-	std::vector<LLGI::DataStructure> ModelShaderDistortionTexture_VS;
+	std::vector<LLGI::DataStructure> SpriteUnlit_PS;
+	std::vector<LLGI::DataStructure> SpriteLit_PS;
+	std::vector<LLGI::DataStructure> SpriteDistortion_PS;
+	std::vector<LLGI::DataStructure> ModelUnlit_PS;
+	std::vector<LLGI::DataStructure> ModelLit_PS;
+	std::vector<LLGI::DataStructure> ModelDistortion_PS;
 
-	std::vector<LLGI::DataStructure> StandardTexture_PS;
-	std::vector<LLGI::DataStructure> StandardLightingTexture_PS;
-	std::vector<LLGI::DataStructure> StandardDistortedTexture_PS;
+	std::vector<LLGI::DataStructure> AdvancedSpriteUnlit_VS;
+	std::vector<LLGI::DataStructure> AdvancedSpriteLit_VS;
+	std::vector<LLGI::DataStructure> AdvancedSpriteDistortion_VS;
+	std::vector<LLGI::DataStructure> AdvancedModelUnlit_VS;
+	std::vector<LLGI::DataStructure> AdvancedModelLit_VS;
+	std::vector<LLGI::DataStructure> AdvancedModelDistortion_VS;
 
-	std::vector<LLGI::DataStructure> ModelShaderLightingTextureNormal_PS;
-	std::vector<LLGI::DataStructure> ModelShaderTexture_PS;
-	std::vector<LLGI::DataStructure> ModelShaderDistortionTexture_PS;
+	std::vector<LLGI::DataStructure> AdvancedSpriteUnlit_PS;
+	std::vector<LLGI::DataStructure> AdvancedSpriteLit_PS;
+	std::vector<LLGI::DataStructure> AdvancedSpriteDistortion_PS;
+	std::vector<LLGI::DataStructure> AdvancedModelUnlit_PS;
+	std::vector<LLGI::DataStructure> AdvancedModelLit_PS;
+	std::vector<LLGI::DataStructure> AdvancedModelDistortion_PS;
 };
 
 /**
@@ -45,8 +58,12 @@ struct FixedShader
 class Renderer : public ::EffekseerRenderer::Renderer
 {
 protected:
-	Renderer() {}
-	virtual ~Renderer() {}
+	Renderer()
+	{
+	}
+	virtual ~Renderer()
+	{
+	}
 
 public:
 	virtual LLGI::Graphics* GetGraphics() const = 0;
@@ -75,15 +92,33 @@ public:
 		ES_SAFE_ADDREF(memoryPool_);
 	}
 
-	virtual ~SingleFrameMemoryPool() { ES_SAFE_RELEASE(memoryPool_); }
+	virtual ~SingleFrameMemoryPool()
+	{
+		ES_SAFE_RELEASE(memoryPool_);
+	}
 
-	void NewFrame() override { memoryPool_->NewFrame(); }
+	void NewFrame() override
+	{
+		memoryPool_->NewFrame();
+	}
 
-	LLGI::SingleFrameMemoryPool* GetInternal() { return memoryPool_; }
+	LLGI::SingleFrameMemoryPool* GetInternal()
+	{
+		return memoryPool_;
+	}
 
-	virtual int GetRef() override { return ::Effekseer::ReferenceObject::GetRef(); }
-	virtual int AddRef() override { return ::Effekseer::ReferenceObject::AddRef(); }
-	virtual int Release() override { return ::Effekseer::ReferenceObject::Release(); }
+	virtual int GetRef() override
+	{
+		return ::Effekseer::ReferenceObject::GetRef();
+	}
+	virtual int AddRef() override
+	{
+		return ::Effekseer::ReferenceObject::AddRef();
+	}
+	virtual int Release() override
+	{
+		return ::Effekseer::ReferenceObject::Release();
+	}
 };
 
 class CommandList : public ::EffekseerRenderer::CommandList, public ::Effekseer::ReferenceObject
@@ -95,7 +130,9 @@ private:
 
 public:
 	CommandList(LLGI::Graphics* graphics, LLGI::CommandList* commandList, LLGI::SingleFrameMemoryPool* memoryPool)
-		: graphics_(graphics), commandList_(commandList), memoryPool_(memoryPool)
+		: graphics_(graphics)
+		, commandList_(commandList)
+		, memoryPool_(memoryPool)
 	{
 		ES_SAFE_ADDREF(graphics_);
 		ES_SAFE_ADDREF(commandList_);
@@ -109,15 +146,33 @@ public:
 		ES_SAFE_RELEASE(memoryPool_);
 	}
 
-	LLGI::Graphics* GetGraphics() { return graphics_; }
+	LLGI::Graphics* GetGraphics()
+	{
+		return graphics_;
+	}
 
-	LLGI::CommandList* GetInternal() { return commandList_; }
+	LLGI::CommandList* GetInternal()
+	{
+		return commandList_;
+	}
 
-	LLGI::SingleFrameMemoryPool* GetMemoryPooll() { return memoryPool_; }
+	LLGI::SingleFrameMemoryPool* GetMemoryPooll()
+	{
+		return memoryPool_;
+	}
 
-	virtual int GetRef() override { return ::Effekseer::ReferenceObject::GetRef(); }
-	virtual int AddRef() override { return ::Effekseer::ReferenceObject::AddRef(); }
-	virtual int Release() override { return ::Effekseer::ReferenceObject::Release(); }
+	virtual int GetRef() override
+	{
+		return ::Effekseer::ReferenceObject::GetRef();
+	}
+	virtual int AddRef() override
+	{
+		return ::Effekseer::ReferenceObject::AddRef();
+	}
+	virtual int Release() override
+	{
+		return ::Effekseer::ReferenceObject::Release();
+	}
 };
 
 class DeviceObject;
@@ -130,6 +185,8 @@ private:
 	std::set<DeviceObject*> deviceObjects_;
 
 	LLGI::Graphics* graphics_ = nullptr;
+
+	Backend::GraphicsDevice* graphicsDevice_ = nullptr;
 
 	/**
 		@brief	register an object
@@ -146,11 +203,13 @@ public:
 		: graphics_(graphics)
 	{
 		ES_SAFE_ADDREF(graphics_);
+		graphicsDevice_ = new Backend::GraphicsDevice(graphics_);
 	}
 
 	virtual ~GraphicsDevice()
 	{
 		ES_SAFE_RELEASE(graphics_);
+		ES_SAFE_RELEASE(graphicsDevice_);
 	}
 
 	/**
@@ -167,54 +226,28 @@ public:
 	*/
 	void OnResetDevice();
 
-	LLGI::Graphics* GetGraphics() const { return graphics_; }
-
-	virtual int GetRef() override { return ::Effekseer::ReferenceObject::GetRef(); }
-	virtual int AddRef() override { return ::Effekseer::ReferenceObject::AddRef(); }
-	virtual int Release() override { return ::Effekseer::ReferenceObject::Release(); }
-};
-
-/**
-@brief	\~English	Model
-		\~Japanese	モデル
-*/
-class Model : public Effekseer::Model
-{
-private:
-public:
-	struct InternalModel
+	LLGI::Graphics* GetGraphics() const
 	{
-		LLGI::VertexBuffer* VertexBuffer;
-		LLGI::IndexBuffer* IndexBuffer;
-		int32_t VertexCount;
-		int32_t IndexCount;
-		int32_t FaceCount;
-
-		InternalModel()
-		{
-			VertexBuffer = nullptr;
-			IndexBuffer = nullptr;
-			VertexCount = 0;
-			IndexCount = 0;
-			FaceCount = 0;
-		}
-
-		virtual ~InternalModel()
-		{
-			ES_SAFE_RELEASE(VertexBuffer);
-			ES_SAFE_RELEASE(IndexBuffer);
-		}
-	};
-
-	InternalModel* InternalModels = nullptr;
-	int32_t ModelCount;
-
-	Model(uint8_t* data, int32_t size) : Effekseer::Model(data, size), InternalModels(nullptr), ModelCount(0)
-	{
-		this->m_vertexSize = sizeof(VertexWithIndex);
+		return graphics_;
 	}
 
-	virtual ~Model() { ES_SAFE_DELETE_ARRAY(InternalModels); }
+	virtual int GetRef() override
+	{
+		return ::Effekseer::ReferenceObject::GetRef();
+	}
+	virtual int AddRef() override
+	{
+		return ::Effekseer::ReferenceObject::AddRef();
+	}
+	virtual int Release() override
+	{
+		return ::Effekseer::ReferenceObject::Release();
+	}
+
+	Backend::GraphicsDevice* GetGraphicsDevice() const
+	{
+		return graphicsDevice_;
+	}
 };
 
 } // namespace EffekseerRendererLLGI

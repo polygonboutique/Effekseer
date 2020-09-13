@@ -198,9 +198,22 @@ struct VS_Input
 	float3 Tangent		: NORMAL2;
 	float2 UV		: TEXCOORD0;
 	float4 Color		: NORMAL3;
-	uint4 Index		: BLENDINDICES0;
+)"
 
-};
+#if defined(_DIRECTX9)
+R"(
+	float Index : BLENDINDICES0;
+};)"
+
+#elif !defined(DISABLE_INSTANCE)
+
+R"(
+	uint Index : SV_InstanceID;
+};)"
+
+#endif
+
+R"(
 
 struct VS_Output
 {
@@ -234,27 +247,30 @@ float4 cameraPosition : register(c246);
 
 )"
 #elif defined(_DIRECTX9)
-							R"(
-float4x4 mCameraProj		: register( c0 );
-float4x4 mModel[20]		: register( c4 );
-float4	fUV[20]			: register( c84 );
-float4	fModelColor[20]		: register( c104 );
 
-float4 mUVInversed		: register(c124);
-float4 predefined_uniform : register(c125);
-float4 cameraPosition : register(c126);
+							R"(
+
+float4x4 mCameraProj		: register( c0 );
+float4x4 mModel[10]		: register( c4 );
+float4	fUV[10]			: register( c44 );
+float4	fModelColor[10]		: register( c54 );
+
+float4 mUVInversed		: register(c64);
+float4 predefined_uniform : register(c65);
+float4 cameraPosition : register(c66);
 
 )"
+
 #else
 R"(
 float4x4 mCameraProj		: register( c0 );
-float4x4 mModel[1]		: register( c4 );
-float4	fUV[1]			: register( c8 );
-float4	fModelColor[1]		: register( c9 );
+float4x4 mModel[10]		: register( c4 );
+float4	fUV[10]			: register( c44 );
+float4	fModelColor[10]		: register( c54 );
 
-float4 mUVInversed		: register(c10);
-float4 predefined_uniform : register(c11);
-float4 cameraPosition : register(c12);
+float4 mUVInversed		: register(c64);
+float4 predefined_uniform : register(c65);
+float4 cameraPosition : register(c66);
 
 )"
 #endif
@@ -269,9 +285,9 @@ static char* model_vs_suf1 = R"(
 
 VS_Output main( const VS_Input Input )
 {
-	float4x4 matModel = mModel[Input.Index.x];
-	float4 uv = fUV[Input.Index.x];
-	float4 modelColor = fModelColor[Input.Index.x] * Input.Color;
+	float4x4 matModel = mModel[Input.Index];
+	float4 uv = fUV[Input.Index];
+	float4 modelColor = fModelColor[Input.Index] * Input.Color;
 
 	VS_Output Output = (VS_Output)0;
 	float4 localPosition = { Input.Pos.x, Input.Pos.y, Input.Pos.z, 1.0 }; 
@@ -471,7 +487,7 @@ static char* g_material_ps_suf2_unlit = R"(
 static char* g_material_ps_suf2_lit = R"(
 	float3 viewDir = normalize(cameraPosition.xyz - worldPos);
 	float3 diffuse = calcDirectionalLightDiffuseColor(baseColor, pixelNormalDir, lightDirection.xyz, ambientOcclusion);
-	float3 specular = lightColor.xyz * lightScale * calcLightingGGX(worldNormal, viewDir, lightDirection.xyz, roughness, 0.9);
+	float3 specular = lightColor.xyz * lightScale * calcLightingGGX(pixelNormalDir, viewDir, lightDirection.xyz, roughness, 0.9);
 
 	float4 Output =  float4(metallic * specular + (1.0 - metallic) * diffuse + baseColor * lightAmbientColor.xyz * ambientOcclusion, opacity);
 	Output.xyz = Output.xyz + emissive.xyz;

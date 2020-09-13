@@ -139,6 +139,8 @@ namespace Effekseer.GUI
 			}
 		}
 
+		public static bool IsWindowFrameless { get; private set; }
+
 		static int resetCount = 0;
 		internal static int resizedCount = 0;
 		internal static int actualWidth = 1;
@@ -179,9 +181,8 @@ namespace Effekseer.GUI
 			typeof(Dock.Network),
 			typeof(Dock.FileViewer),
 			typeof(Dock.Dynamic),
-#if __EFFEKSEER_BUILD_VERSION16__
-			typeof(Dock.AlphaCrunchValues),
-#endif
+			typeof(Dock.AdvancedRenderCommonValues),
+			typeof(Dock.AdvancedRenderCommonValues2),
 		};
 
 		static Dock.DockManager dockManager = null;
@@ -200,6 +201,11 @@ namespace Effekseer.GUI
 
 			swig.MainWindowState state = new swig.MainWindowState();
 
+			if (System.Environment.OSVersion.Platform == PlatformID.Win32NT)
+			{
+				IsWindowFrameless = true;
+			}
+
 			// TODO : refactor
 			var windowConfig = new Configs.WindowConfig();
 			if(windowConfig.Load(System.IO.Path.Combine(appDirectory, "config.Dock.xml")))
@@ -217,8 +223,10 @@ namespace Effekseer.GUI
 				state.Height = 720;
 				windowConfig = null;
 			}
-			
-			if(!swig.MainWindow.Initialize("Effekseer", state, false, deviceType == swig.DeviceType.OpenGL))
+
+			state.IsFrameless = IsWindowFrameless;
+
+			if (!swig.MainWindow.Initialize("Effekseer", state, false, deviceType == swig.DeviceType.OpenGL))
 			{
 				return false;
 			}
@@ -239,6 +247,23 @@ namespace Effekseer.GUI
 				if(f == null)
 				{
 					f = IO.LoadFile(path);
+				}
+
+				// TODO : refactor it
+				// Permission error
+				if(f != null && f.GetSize() == 0)
+				{
+					var message = MultiLanguageTextProvider.GetText("PermissionError_File");
+
+					if (swig.GUIManager.IsMacOSX())
+					{
+						message += "\n";
+						message += MultiLanguageTextProvider.GetText("PermissionError_File_Mac");
+					}
+
+					message = string.Format(message, System.IO.Path.GetFileName(path));
+
+					throw new FileLoadPermissionException(message);
 				}
 
 				if (f == null) return null;
@@ -769,7 +794,7 @@ namespace Effekseer.GUI
 		{
 			foreach(var panel in panels)
 			{
-				if (panel.GetType() == t) return panel;
+				if (panel != null && panel.GetType() == t) return panel;
 			}
 
 			return null;

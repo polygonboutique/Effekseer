@@ -6,25 +6,28 @@
 
 #include "Effekseer.RectF.h"
 
+#include "Effekseer.CurveLoader.h"
 #include "Effekseer.EffectLoader.h"
-#include "Effekseer.TextureLoader.h"
+#include "Effekseer.MaterialLoader.h"
 #include "Effekseer.ModelLoader.h"
 #include "Effekseer.SoundLoader.h"
-#include "Effekseer.MaterialLoader.h"
+#include "Effekseer.TextureLoader.h"
 
-#include "Renderer/Effekseer.SpriteRenderer.h"
+#include "Renderer/Effekseer.ModelRenderer.h"
 #include "Renderer/Effekseer.RibbonRenderer.h"
 #include "Renderer/Effekseer.RingRenderer.h"
-#include "Renderer/Effekseer.ModelRenderer.h"
+#include "Renderer/Effekseer.SpriteRenderer.h"
 #include "Renderer/Effekseer.TrackRenderer.h"
 
 #include "Effekseer.Effect.h"
 #include "IO/Effekseer.EfkEfcFactory.h"
+#include "Model/ProcedualModelGenerator.h"
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-namespace Effekseer {
+namespace Effekseer
+{
 
 //----------------------------------------------------------------------------------
 //
@@ -35,6 +38,7 @@ Setting::Setting()
 	, m_textureLoader(NULL)
 	, m_soundLoader(NULL)
 	, m_modelLoader(NULL)
+	, m_curveLoader(NULL)
 {
 	auto effectFactory = new EffectFactory();
 	effectFactories.push_back(effectFactory);
@@ -42,6 +46,8 @@ Setting::Setting()
 	// this function is for 1.6
 	auto efkefcFactory = new EfkEfcFactory();
 	effectFactories.push_back(efkefcFactory);
+
+	procedualMeshGenerator_ = new ProcedualModelGenerator();
 }
 
 //----------------------------------------------------------------------------------
@@ -56,6 +62,7 @@ Setting::~Setting()
 	ES_SAFE_DELETE(m_soundLoader);
 	ES_SAFE_DELETE(m_modelLoader);
 	ES_SAFE_DELETE(m_materialLoader);
+	ES_SAFE_DELETE(m_curveLoader);
 }
 
 //----------------------------------------------------------------------------------
@@ -151,7 +158,8 @@ void Setting::SetSoundLoader(SoundLoader* loader)
 }
 
 MaterialLoader* Setting::GetMaterialLoader()
-{ return m_materialLoader;
+{
+	return m_materialLoader;
 }
 
 void Setting::SetMaterialLoader(MaterialLoader* loader)
@@ -160,11 +168,35 @@ void Setting::SetMaterialLoader(MaterialLoader* loader)
 	m_materialLoader = loader;
 }
 
-void Setting::AddEffectFactory(EffectFactory* effectFactory) { 
-	
+CurveLoader* Setting::GetCurveLoader()
+{
+	return m_curveLoader;
+}
+
+void Setting::SetCurveLoader(CurveLoader* loader)
+{
+	ES_SAFE_DELETE(m_curveLoader);
+	m_curveLoader = loader;
+}
+
+ProcedualModelGenerator* Setting::GetProcedualMeshGenerator() const
+{
+	return procedualMeshGenerator_;
+}
+
+void Setting::SetProcedualMeshGenerator(ProcedualModelGenerator* generator)
+{
+	ES_SAFE_ADDREF(generator);
+	ES_SAFE_RELEASE(procedualMeshGenerator_);
+	procedualMeshGenerator_ = generator;
+}
+
+void Setting::AddEffectFactory(EffectFactory* effectFactory)
+{
+
 	if (effectFactory == nullptr)
 		return;
-	ES_SAFE_ADDREF(effectFactory); 
+	ES_SAFE_ADDREF(effectFactory);
 	effectFactories.push_back(effectFactory);
 }
 
@@ -179,14 +211,15 @@ void Setting::ClearEffectFactory()
 
 EffectFactory* Setting::GetEffectFactory(int32_t ind) const
 {
-	return effectFactories[ind]; 
+	return effectFactories[ind];
 }
 
-int32_t Setting::GetEffectFactoryCount() const { 
-	return effectFactories.size();
+int32_t Setting::GetEffectFactoryCount() const
+{
+	return static_cast<int32_t>(effectFactories.size());
 }
 
-}
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
+} // namespace Effekseer
+  //----------------------------------------------------------------------------------
+  //
+  //----------------------------------------------------------------------------------

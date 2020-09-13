@@ -7,10 +7,15 @@
 
 #include "../../EffekseerRendererCommon/EffekseerRenderer.Renderer.h"
 
+static const int WindowWidth = 320;
+static const int WindowHeight = 240;
+
 struct EffectPlatformInitializingParameter
 {
 	bool VSync = true;
 	bool IsUpdatedByHandle = false;
+	bool IsCullingCreated = true;
+	int InstanceCount = 8000;
 };
 
 class EffectPlatform
@@ -36,15 +41,33 @@ protected:
 	std::vector<uint32_t> checkeredPattern_;
 
 	EffekseerRenderer::Renderer* GetRenderer() const;
-	virtual void* GetNativePtr(int32_t index) { return nullptr; }
+	virtual void* GetNativePtr(int32_t index)
+	{
+		return nullptr;
+	}
 	virtual EffekseerRenderer::Renderer* CreateRenderer() = 0;
-	virtual void InitializeDevice(const EffectPlatformInitializingParameter& param) {}
-	virtual void PreDestroyDevice() {}
-	virtual void DestroyDevice() {}
-	virtual void BeginRendering() {}
-	virtual void EndRendering() {}
-	virtual void Present() {}
-	virtual bool DoEvent() { return false; }
+	virtual void InitializeDevice(const EffectPlatformInitializingParameter& param)
+	{
+	}
+	virtual void PreDestroyDevice()
+	{
+	}
+	virtual void DestroyDevice()
+	{
+	}
+	virtual void BeginRendering()
+	{
+	}
+	virtual void EndRendering()
+	{
+	}
+	virtual void Present()
+	{
+	}
+	virtual bool DoEvent()
+	{
+		return false;
+	}
 
 public:
 	EffectPlatform();
@@ -57,11 +80,24 @@ public:
 
 	bool Update();
 
+	bool Draw();
+
 	void StopAllEffects();
 
-	virtual bool TakeScreenshot(const char* path) { return false; }
+	virtual bool TakeScreenshot(const char* path)
+	{
+		return false;
+	}
 
-	virtual bool SetFullscreen(bool isFullscreen) { return false; }
+	virtual bool SetFullscreen(bool isFullscreen)
+	{
+		return false;
+	}
 
-	Effekseer::Manager* GetManager() const { return manager_; }
+	Effekseer::Manager* GetManager() const
+	{
+		return manager_;
+	}
+
+	const std::vector<Effekseer::Effect*>& GetEffects() const { return effects_; }
 };

@@ -61,6 +61,9 @@ robocopy Dev\Cpp\EffekseerMaterialCompiler %RDIR_R%\src\EffekseerMaterialCompile
 mkdir %RDIR_R%\src\3rdParty\LLGI
 robocopy Dev\Cpp\3rdParty\LLGI %RDIR_R%\src\3rdParty\LLGI /S
 
+mkdir %RDIR_R%\src\3rdParty\glslang
+robocopy Dev\Cpp\3rdParty\glslang %RDIR_R%\src\3rdParty\glslang /S
+
 mkdir %RDIR_R%\src\3rdParty\stb_effekseer
 robocopy Dev\Cpp\3rdParty\stb_effekseer %RDIR_R%\src\3rdParty\stb_effekseer *.h
 
@@ -77,7 +80,9 @@ mkdir %RDIR%\Sample
 robocopy Release\Sample %RDIR%\Sample *.efkproj *.efkmodel *.txt *.png *.mqo *.fbx /S
 
 echo License
-cp Release/LICENSE.txt %RDIR_R%/LICENSE.txt
+cp LICENSE %RDIR_R%/LICENSE.txt
+cp LICENSE_RUNTIME_DIRECTX %RDIR_R%/LICENSE_RUNTIME_DIRECTX.txt
+cp LICENSE_RUNTIME_VULKAN %RDIR_R%/LICENSE_RUNTIME_VULKAN.txt
 
 echo Readme
 copy docs\readme_runtime_ja.txt %RDIR_R%\readme_runtime_ja.txt
@@ -88,6 +93,8 @@ copy Release\CMakeLists.txt %RDIR_R%\.
 robocopy Downloads\glfw %RDIR_R%\Examples\Utils\glfw\. /S
 copy Release\build_msvc2017.bat %RDIR_R%\build_msvc2017.bat
 copy Release\build_msvc2019.bat %RDIR_R%\build_msvc2019.bat
+copy Release\build_vulkan_msvc2019.bat %RDIR_R%\build_vulkan_msvc2019.bat
+
 copy Release\build_macOS.sh %RDIR_R%\build_macOS.sh
 
 pause

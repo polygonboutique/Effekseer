@@ -5,22 +5,29 @@ SamplerState	g_sampler		: register( s0 );
 Texture2D	g_backTexture		: register( t1 );
 SamplerState	g_backSampler		: register( s1 );
 
-#ifdef __EFFEKSEER_BUILD_VERSION16__
 Texture2D g_alphaTexture        : register(t2);
 SamplerState g_alphaSampler     : register(s2);
-#endif
 
-#ifdef __EFFEKSEER_BUILD_VERSION16__
+Texture2D g_uvDistortionTexture     : register(t3);
+SamplerState g_uvDistortionSampler  : register(s3);
+
+Texture2D g_blendTexture            : register( t4 );
+SamplerState g_blendSampler         : register( s4 );
+
+Texture2D g_blendAlphaTexture       : register( t5 );
+SamplerState g_blendAlphaSampler    : register( s5 );
+
+Texture2D g_blendUVDistortionTexture    : register( t6 );
+SamplerState g_blendUVDistortionSampler : register( s6 );
+
 cbuffer PS_ConstanBuffer : register(b0)
 {
     float4 g_scale;
     float4 mUVInversedBack;
-    float4 g_flipbookParameter; // x:enable, y:interpolationType
+    float4 flipbookParameter;       // x:enable, y:interpolationType
+    float4 uvDistortionParameter;   // x:intensity, y:blendIntensity, zw:uvInversed
+    float4 blendTextureParameter; // x:blendType
 };
-#else
-float4		g_scale			: register(c0);
-float4 mUVInversedBack		: register(c1);
-#endif
 
 struct PS_Input
 {
@@ -32,43 +39,49 @@ struct PS_Input
 	float4 PosU		: TEXCOORD2;
 	float4 PosR		: TEXCOORD3;
     
-#ifdef __EFFEKSEER_BUILD_VERSION16__
-    float2 AlphaUV  : TEXCOORD4;
-    float FlipbookRate : TEXCOORD5;
-    float2 FlipbookNextIndexUV : TEXCOORD6;
-    float AlphaThreshold : TEXCOORD7;
-#endif
+	float4 Alpha_Dist_UV : TEXCOORD4;
+	float4 Blend_Alpha_Dist_UV : TEXCOORD5;
+
+	// BlendUV, FlipbookNextIndexUV
+	float4 Blend_FBNextIndex_UV : TEXCOORD6;
+
+	// x - FlipbookRate, y - AlphaThreshold
+	float2 Others : TEXCOORD7;
 };
 
+#include "renderer_common_PS.fx"
 
-float4 PS( const PS_Input Input ) : SV_Target
+float4 main( const PS_Input Input ) : SV_Target
 {
-	float4 Output = g_texture.Sample(g_sampler, Input.UV);
+	AdvancedParameter advancedParam = DisolveAdvancedParameter(Input);
+
+    float2 UVOffset = UVDistortionOffset(g_uvDistortionTexture, g_uvDistortionSampler, advancedParam.UVDistortionUV, uvDistortionParameter.zw);
+    UVOffset *= uvDistortionParameter.x;
+
+	float4 Output = g_texture.Sample(g_sampler, Input.UV + UVOffset);
 	Output.a = Output.a * Input.Color.a;
     
-#ifdef __EFFEKSEER_BUILD_VERSION16__
-    // flipbook interpolation
-    if(g_flipbookParameter.x > 0)
-    {
-        float4 NextPixelColor = g_texture.Sample(g_sampler, Input.FlipbookNextIndexUV) * Input.Color;
+	ApplyFlipbook(Output, g_texture, g_sampler, flipbookParameter, Input.Color, advancedParam.FlipbookNextIndexUV + UVOffset, advancedParam.FlipbookRate);
     
-        // lerp
-        if(g_flipbookParameter.y == 1)
-        {
-            Output = lerp(Output, NextPixelColor, Input.FlipbookRate);
-        }
-    }
+    // apply alpha texture
+	float4 AlphaTexColor = g_alphaTexture.Sample(g_alphaSampler, advancedParam.AlphaUV + UVOffset);
+    Output.a *= AlphaTexColor.r * AlphaTexColor.a;
     
-    Output.a *= g_alphaTexture.Sample(g_alphaSampler, Input.AlphaUV).a;
+    // blend texture uv offset
+	float2 BlendUVOffset = UVDistortionOffset(g_blendUVDistortionTexture, g_blendUVDistortionSampler, advancedParam.BlendUVDistortionUV, uvDistortionParameter.zw);
+    BlendUVOffset *= uvDistortionParameter.y;
     
-    // alpha threshold
-    if(Output.a <= Input.AlphaThreshold)
-    {
-        discard;
-    }
-#endif
-
-	if(Output.a == 0.0f) discard;
+    float4 BlendTextureColor = g_blendTexture.Sample(g_blendSampler, advancedParam.BlendUV + BlendUVOffset);
+	float4 BlendAlphaTextureColor = g_blendAlphaTexture.Sample(g_blendAlphaSampler, advancedParam.BlendAlphaUV + BlendUVOffset);
+    BlendTextureColor.a *= BlendAlphaTextureColor.r * BlendAlphaTextureColor.a;
+    
+    ApplyTextureBlending(Output, BlendTextureColor, blendTextureParameter.x);
+    
+    // zero + alpha threshold
+	if (Output.a <= max(0.0, advancedParam.AlphaThreshold))
+	{
+		discard;
+	}
 
 	float2 pos = Input.Pos.xy / Input.Pos.w;
 	float2 posU = Input.PosU.xy / Input.PosU.w;

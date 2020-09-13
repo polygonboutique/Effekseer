@@ -9,6 +9,8 @@ namespace Effekseer.GUI.Dock
     class DockPanel : GroupControl, IRemovableControl, IDroppableControl
     {
 		public string Label { get; set; } = string.Empty;
+		
+		public string TabLabel { get { return (AllowsShortTab) ? Label.Substring(0, 1) : Label; } }
 
 		public string WindowID { get { return Label.Substring(Label.IndexOf("###")); } }
 
@@ -31,6 +33,11 @@ namespace Effekseer.GUI.Dock
 
 		protected bool NoPadding = false;
 		protected bool NoScrollBar = false;
+		protected bool NoCloseButton = false;
+		protected bool AllowsShortTab = true;
+
+		private bool Visibled = false;
+		private bool Windowed = false;
 
 		public DockPanel()
 		{
@@ -62,7 +69,11 @@ namespace Effekseer.GUI.Dock
 
 					if (NoPadding) Manager.NativeManager.PushStyleVar(swig.ImGuiStyleVarFlags.WindowPadding, new swig.Vec2(0.0f, 0.0f));
 
-					bool dockEnabled = Manager.NativeManager.BeginDock(Label, ref opened, flags);
+					bool dockEnabled = Manager.NativeManager.BeginDock(
+						Label, TabLabel, ref opened, Visibled && !NoCloseButton, flags);
+
+					Visibled = Manager.NativeManager.IsDockVisibled();
+					Windowed = Manager.NativeManager.IsDockWindowed();
 
 					if (NoPadding) Manager.NativeManager.PopStyleVar();
 

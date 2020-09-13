@@ -15,11 +15,46 @@ namespace Effekseer.Data
 			private set;
 		}
 
+		[Selector(ID = 0)]
 		[Key(key = "BasicSettings_LocationEffectType")]
-		public Value.Enum<ParentEffectType> LocationEffectType
+		public Value.Enum<TranslationParentEffectType> LocationEffectType
 		{
 			get;
 			private set;
+		}
+
+		[Selected(ID = 0, Value = 4)]
+		[Selected(ID = 0, Value = 5)]
+		[IO(Export = true)]
+		public SteeringBehaviorParameter SteeringBehaviorParam
+		{
+			get;
+			private set;
+		}
+
+		public class SteeringBehaviorParameter
+		{
+			[Key(key = "BasicSettings_SteeringBehaviorParemeter_MaxFollowSpeed")]
+			[IO(Export = true)]
+			public Value.FloatWithRandom MaxFollowSpeed
+			{
+				get;
+				private set;
+			}
+
+			[Key(key = "BasicSettings_SteeringBehaviorParameter_SteeringSpeed")]
+			[IO(Export = true)]
+			public Value.FloatWithRandom SteeringSpeed
+			{
+				get;
+				private set;
+			}
+
+			public SteeringBehaviorParameter()
+			{
+				MaxFollowSpeed = new Value.FloatWithRandom(10, float.MaxValue, 0.0f);
+				SteeringSpeed = new Value.FloatWithRandom(30, 100, 0);
+			}
 		}
 
 		[Key(key = "BasicSettings_RotationEffectType")]
@@ -81,7 +116,7 @@ namespace Effekseer.Data
 		internal CommonValues()
 		{
 			MaxGeneration = new Value.IntWithInifinite(1, false, int.MaxValue, 1);
-			LocationEffectType = new Value.Enum<ParentEffectType>(ParentEffectType.Already);
+			LocationEffectType = new Value.Enum<TranslationParentEffectType>(TranslationParentEffectType.Already);
 			RotationEffectType = new Value.Enum<ParentEffectType>(ParentEffectType.Already);
 			ScaleEffectType = new Value.Enum<ParentEffectType>(ParentEffectType.Already);
 			RemoveWhenLifeIsExtinct = new Value.Boolean(true);
@@ -90,6 +125,7 @@ namespace Effekseer.Data
 			Life = new Value.IntWithRandom(100, int.MaxValue, 1);
 			GenerationTime = new Value.FloatWithRandom(1.0f, float.MaxValue, 0.00001f);
 			GenerationTimeOffset = new Value.FloatWithRandom(0, float.MaxValue, float.MinValue);
+			SteeringBehaviorParam = new SteeringBehaviorParameter();
 
 			// dynamic parameter
 			MaxGeneration.CanSelectDynamicEquation = true;

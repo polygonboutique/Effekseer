@@ -1,11 +1,8 @@
-﻿
+﻿#include "Effekseer.EffectNodeRibbon.h"
 
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-#include "Effekseer.Manager.h"
 #include "Effekseer.Effect.h"
 #include "Effekseer.EffectNode.h"
+#include "Effekseer.Manager.h"
 #include "Effekseer.Vector3D.h"
 #include "SIMD/Effekseer.SIMDUtils.h"
 
@@ -14,7 +11,6 @@
 #include "Effekseer.InstanceGlobal.h"
 
 #include "Effekseer.InstanceGroup.h"
-#include "Effekseer.EffectNodeRibbon.h"
 
 #include "Effekseer.Setting.h"
 
@@ -145,8 +141,8 @@ void EffectNodeRibbon::BeginRendering(int32_t count, Manager* manager)
 	RibbonRenderer* renderer = manager->GetRibbonRenderer();
 	if (renderer != NULL)
 	{
-		//m_nodeParameter.TextureFilter = RendererCommon.FilterType;
-		//m_nodeParameter.TextureWrap = RendererCommon.WrapType;
+		// m_nodeParameter.TextureFilter = RendererCommon.FilterType;
+		// m_nodeParameter.TextureWrap = RendererCommon.WrapType;
 		m_nodeParameter.ZTest = RendererCommon.ZTest;
 		m_nodeParameter.ZWrite = RendererCommon.ZWrite;
 		m_nodeParameter.ViewpointDependent = ViewpointDependent != 0;
@@ -157,6 +153,8 @@ void EffectNodeRibbon::BeginRendering(int32_t count, Manager* manager)
 		m_nodeParameter.BasicParameterPtr = &RendererCommon.BasicParameter;
 		m_nodeParameter.TextureUVTypeParameterPtr = &TextureUVType;
 		m_nodeParameter.IsRightHand = manager->GetCoordinateSystem() == CoordinateSystem::RH;
+		m_nodeParameter.EnableViewOffset = (TranslationType == ParameterTranslationType_ViewOffset);
+
 		renderer->BeginRendering(m_nodeParameter, count, m_userData);
 	}
 }
@@ -171,16 +169,23 @@ void EffectNodeRibbon::BeginRenderingGroup(InstanceGroup* group, Manager* manage
 
 		if (group->GetFirst() != nullptr)
 		{
-#ifdef __EFFEKSEER_BUILD_VERSION16__
-			m_instanceParameter.UV = group->GetFirst()->GetUV(0);
-			m_instanceParameter.AlphaUV = group->GetFirst()->GetUV(1);
+			Instance* groupFirst = group->GetFirst();
+			m_instanceParameter.UV = groupFirst->GetUV(0);
+			m_instanceParameter.AlphaUV = groupFirst->GetUV(1);
+			m_instanceParameter.UVDistortionUV = groupFirst->GetUV(2);
+			m_instanceParameter.BlendUV = groupFirst->GetUV(3);
+			m_instanceParameter.BlendAlphaUV = groupFirst->GetUV(4);
+			m_instanceParameter.BlendUVDistortionUV = groupFirst->GetUV(5);
 
-			m_instanceParameter.FlipbookIndexAndNextRate = group->GetFirst()->m_flipbookIndexAndNextRate;
+			m_instanceParameter.FlipbookIndexAndNextRate = groupFirst->m_flipbookIndexAndNextRate;
 
-			m_instanceParameter.AlphaThreshold = group->GetFirst()->m_AlphaThreshold;
-#else
-			m_instanceParameter.UV = group->GetFirst()->GetUV();
-#endif
+			m_instanceParameter.AlphaThreshold = groupFirst->m_AlphaThreshold;
+
+			if (m_nodeParameter.EnableViewOffset)
+			{
+				m_instanceParameter.ViewOffsetDistance = groupFirst->translation_values.view_offset.distance;
+			}
+
 			CalcCustomData(group->GetFirst(), m_instanceParameter.CustomData1, m_instanceParameter.CustomData2);
 		}
 
@@ -243,7 +248,6 @@ void EffectNodeRibbon::Rendering(const Instance& instance, const Instance* next_
 
 		if (RibbonColor.type == RibbonColorParameter::Default)
 		{
-
 		}
 		else if (RibbonColor.type == RibbonColorParameter::Fixed)
 		{
@@ -261,8 +265,10 @@ void EffectNodeRibbon::Rendering(const Instance& instance, const Instance* next_
 		// Apply global Color
 		if (instance.m_pContainer->GetRootInstance()->IsGlobalColorSet)
 		{
-			m_instanceParameter.Colors[0] = Color::Mul(m_instanceParameter.Colors[0], instance.m_pContainer->GetRootInstance()->GlobalColor);
-			m_instanceParameter.Colors[1] = Color::Mul(m_instanceParameter.Colors[1], instance.m_pContainer->GetRootInstance()->GlobalColor);
+			m_instanceParameter.Colors[0] =
+				Color::Mul(m_instanceParameter.Colors[0], instance.m_pContainer->GetRootInstance()->GlobalColor);
+			m_instanceParameter.Colors[1] =
+				Color::Mul(m_instanceParameter.Colors[1], instance.m_pContainer->GetRootInstance()->GlobalColor);
 		}
 
 		if (RibbonPosition.type == RibbonPositionParameter::Default)
@@ -300,7 +306,7 @@ void EffectNodeRibbon::EndRendering(Manager* manager)
 void EffectNodeRibbon::InitializeRenderedInstance(Instance& instance, Manager* manager)
 {
 	InstanceValues& instValues = instance.rendererValues.ribbon;
-	auto instanceGlobal = instance.m_pContainer->GetRootInstance();
+	IRandObject& rand = instance.GetRandObject();
 
 	if (RibbonAllColor.type == RibbonAllColorParameter::Fixed)
 	{
@@ -309,13 +315,13 @@ void EffectNodeRibbon::InitializeRenderedInstance(Instance& instance, Manager* m
 	}
 	else if (RibbonAllColor.type == RibbonAllColorParameter::Random)
 	{
-		instValues._original = RibbonAllColor.random.all.getValue(*instanceGlobal);
+		instValues._original = RibbonAllColor.random.all.getValue(rand);
 		instValues.allColorValues.random._color = instValues._original;
 	}
 	else if (RibbonAllColor.type == RibbonAllColorParameter::Easing)
 	{
-		instValues.allColorValues.easing.start = RibbonAllColor.easing.all.getStartValue(*instanceGlobal);
-		instValues.allColorValues.easing.end = RibbonAllColor.easing.all.getEndValue(*instanceGlobal);
+		instValues.allColorValues.easing.start = RibbonAllColor.easing.all.getStartValue(rand);
+		instValues.allColorValues.easing.end = RibbonAllColor.easing.all.getEndValue(rand);
 	}
 
 	if (RendererCommon.ColorBindType == BindType::Always || RendererCommon.ColorBindType == BindType::WhenCreating)
@@ -350,10 +356,7 @@ void EffectNodeRibbon::UpdateRenderedInstance(Instance& instance, Manager* manag
 		float t = instance.m_LivingTime / instance.m_LivedTime;
 
 		RibbonAllColor.easing.all.setValueToArg(
-			instValues._original,
-			instValues.allColorValues.easing.start,
-			instValues.allColorValues.easing.end,
-			t);
+			instValues._original, instValues.allColorValues.easing.start, instValues.allColorValues.easing.end, t);
 	}
 
 	float fadeAlpha = GetFadeAlpha(instance);
@@ -377,7 +380,7 @@ void EffectNodeRibbon::UpdateRenderedInstance(Instance& instance, Manager* manag
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
+} // namespace Effekseer
 
 //----------------------------------------------------------------------------------
 //

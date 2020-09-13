@@ -13,8 +13,14 @@
 namespace EffekseerRendererGL
 {
 
+static const int InstanceCount = 10;
+
 ::Effekseer::MaterialData* MaterialLoader::LoadAcutually(::Effekseer::Material& material, ::Effekseer::CompiledMaterialBinary* binary)
 {
+	auto deviceType = graphicsDevice_->GetDeviceType();
+
+	auto instancing = deviceType == OpenGLDeviceType::OpenGL3 || deviceType == OpenGLDeviceType::OpenGLES3;
+
 	auto materialData = new ::Effekseer::MaterialData();
 	materialData->IsSimpleVertex = material.GetIsSimpleVertex();
 	materialData->IsRefractionRequired = material.GetHasRefraction();
@@ -37,13 +43,10 @@ namespace EffekseerRendererGL
 	{
 		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, false, st, 1);
 
-		auto shader = Shader::Create(graphicsDevice_,
-									 (const char*)binary->GetVertexShaderData(shaderTypes[st]),
-									 binary->GetVertexShaderSize(shaderTypes[st]),
-									 (const char*)binary->GetPixelShaderData(shaderTypes[st]),
-									 binary->GetPixelShaderSize(shaderTypes[st]),
-									 "CustomMaterial",
-									 true);
+		ShaderCodeView vs((const char*)binary->GetVertexShaderData(shaderTypes[st]));
+		ShaderCodeView ps((const char*)binary->GetPixelShaderData(shaderTypes[st]));
+
+		auto shader = Shader::Create(graphicsDevice_, &vs, 1, &ps, 1, "CustomMaterial", true);
 
 		if (shader == nullptr)
 		{
@@ -61,7 +64,6 @@ namespace EffekseerRendererGL
 			EffekseerRendererGL::ShaderAttribInfo sprite_attribs[3] = {
 				{"atPosition", GL_FLOAT, 3, 0, false}, {"atColor", GL_UNSIGNED_BYTE, 4, 12, true}, {"atTexCoord", GL_FLOAT, 2, 16, false}};
 			shader->GetAttribIdList(3, sprite_attribs);
-			shader->SetVertexSize(sizeof(EffekseerRendererGL::Vertex));
 		}
 		else
 		{
@@ -100,8 +102,6 @@ namespace EffekseerRendererGL
 			}
 
 			shader->GetAttribIdList(count, sprite_attribs);
-			shader->SetVertexSize(sizeof(EffekseerRenderer::DynamicVertex) +
-								  sizeof(float) * (material.GetCustomData1Count() + material.GetCustomData2Count()));
 		}
 
 		shader->AddVertexConstantLayout(
@@ -191,15 +191,12 @@ namespace EffekseerRendererGL
 
 	for (int32_t st = 0; st < shaderTypeCount; st++)
 	{
-		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, true, st, 1);
+		auto parameterGenerator = EffekseerRenderer::MaterialShaderParameterGenerator(material, true, st, instancing ? InstanceCount : 1);
 
-		auto shader = Shader::Create(graphicsDevice_,
-									 (const char*)binary->GetVertexShaderData(shaderTypesModel[st]),
-									 binary->GetVertexShaderSize(shaderTypesModel[st]),
-									 (const char*)binary->GetPixelShaderData(shaderTypesModel[st]),
-									 binary->GetPixelShaderSize(shaderTypesModel[st]),
-									 "CustomMaterial",
-									 true);
+		ShaderCodeView vs((const char*)binary->GetVertexShaderData(shaderTypesModel[st]));
+		ShaderCodeView ps((const char*)binary->GetPixelShaderData(shaderTypesModel[st]));
+
+		auto shader = Shader::Create(graphicsDevice_, &vs, 1, &ps, 1, "CustomMaterial", true);
 
 		if (shader == nullptr)
 		{
@@ -212,22 +209,17 @@ namespace EffekseerRendererGL
 			return nullptr;
 		}
 
-		static ShaderAttribInfo g_model_attribs[ModelRenderer::NumAttribs] = {
+		const int32_t NumAttribs = 6;
+		static ShaderAttribInfo g_model_attribs[NumAttribs] = {
 			{"a_Position", GL_FLOAT, 3, 0, false},
 			{"a_Normal", GL_FLOAT, 3, 12, false},
 			{"a_Binormal", GL_FLOAT, 3, 24, false},
 			{"a_Tangent", GL_FLOAT, 3, 36, false},
 			{"a_TexCoord", GL_FLOAT, 2, 48, false},
 			{"a_Color", GL_UNSIGNED_BYTE, 4, 56, true},
-#if defined(MODEL_SOFTWARE_INSTANCING)
-			{"a_InstanceID", GL_FLOAT, 1, 0, false},
-			{"a_UVOffset", GL_FLOAT, 4, 0, false},
-			{"a_ModelColor", GL_FLOAT, 4, 0, false},
-#endif
 		};
 
-		shader->GetAttribIdList(ModelRenderer::NumAttribs, g_model_attribs);
-		shader->SetVertexSize(sizeof(::Effekseer::Model::Vertex));
+		shader->GetAttribIdList(NumAttribs, g_model_attribs);
 
 		shader->AddVertexConstantLayout(
 			CONSTANT_TYPE_MATRIX44, shader->GetUniformId("ProjectionMatrix"), parameterGenerator.VertexProjectionMatrixOffset);
@@ -343,7 +335,8 @@ namespace EffekseerRendererGL
 }
 
 MaterialLoader::MaterialLoader(GraphicsDevice* graphicsDevice, ::Effekseer::FileInterface* fileInterface, bool canLoadFromCache)
-	: fileInterface_(fileInterface), canLoadFromCache_(canLoadFromCache)
+	: fileInterface_(fileInterface)
+	, canLoadFromCache_(canLoadFromCache)
 {
 	if (fileInterface == nullptr)
 	{
@@ -354,7 +347,10 @@ MaterialLoader::MaterialLoader(GraphicsDevice* graphicsDevice, ::Effekseer::File
 	ES_SAFE_ADDREF(graphicsDevice_);
 }
 
-MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(graphicsDevice_); }
+MaterialLoader ::~MaterialLoader()
+{
+	ES_SAFE_RELEASE(graphicsDevice_);
+}
 
 ::Effekseer::MaterialData* MaterialLoader::Load(const EFK_CHAR* path)
 {

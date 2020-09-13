@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -57,6 +57,7 @@ namespace Effekseer.GUI.Dock
 		bool canCurveControlPre = true;
 		bool canCurveControl = true;
 		bool canControl = true;
+		bool isDetailControlling = false;
 
 		Component.Enum startCurve = new Component.Enum();
 		Component.Enum endCurve = new Component.Enum();
@@ -123,9 +124,13 @@ namespace Effekseer.GUI.Dock
 
 		protected override void UpdateInternal()
 		{
-			canControl = true;
+			canControl = !isDetailControlling;
+			isDetailControlling = false;
+
 			float dpiScale = Manager.DpiScale;
 			var contentSize = Manager.NativeManager.GetContentRegionAvail();
+
+			Manager.NativeManager.PushItemWidth(-1);
 
 			if (Component.Functions.CanShowTip())
 			{
@@ -271,6 +276,10 @@ namespace Effekseer.GUI.Dock
 
 			UpdateDetails();
 
+			Manager.NativeManager.PopItemWidth();
+
+			CheckAndApplyUpdate(treeNodes);
+
 			isFirstUpdate = false;
 		}
 
@@ -324,12 +333,15 @@ namespace Effekseer.GUI.Dock
 		void UpdateGraph(TreeNode treeNode)
 		{
 			UpdateGraph(treeNodes, ref canControl);
+		}
 
+		private void CheckAndApplyUpdate(TreeNode treeNode)
+		{
 			canCurveControlPre = canCurveControl;
 			canCurveControl = canControl;
 
 			// Check update
-			if(!canCurveControlPre && canCurveControl)
+			if (!canCurveControlPre && canCurveControl)
 			{
 				Func<TreeNode, bool> isDirtied = null;
 
@@ -348,7 +360,7 @@ namespace Effekseer.GUI.Dock
 					return false;
 				};
 
-				if(isDirtied(treeNode))
+				if (isDirtied(treeNode))
 				{
 					Command.CommandManager.StartCollection();
 
@@ -398,9 +410,16 @@ namespace Effekseer.GUI.Dock
 					selected.Item2.RightKeys[selectedInd] += diff;
 					selected.Item2.IsDirtied = true;
 					selected.Item2.SolveContradiction();
+
+					canCurveControl = false;
 				}
 
-				if (Manager.NativeManager.IsItemActive()) canControl = false;
+				if (Manager.NativeManager.IsItemActive())
+				{
+					canCurveControl = false;
+					canControl = false;
+					isDetailControlling = true;
+				}
 			}
 			else
 			{
@@ -418,9 +437,17 @@ namespace Effekseer.GUI.Dock
 					selected.Item2.LeftValues[selectedInd] += diff;
 					selected.Item2.RightValues[selectedInd] += diff;
 					selected.Item2.IsDirtied = true;
+
+					canControl = false;
+					canCurveControl = false;
 				}
 
-				if (Manager.NativeManager.IsItemActive()) canControl = false;
+				if (Manager.NativeManager.IsItemActive())
+				{
+					canCurveControl = false;
+					canControl = false;
+					isDetailControlling = true;
+				}
 			}
 			else
 			{
@@ -437,9 +464,17 @@ namespace Effekseer.GUI.Dock
 					selected.Item2.LeftValues[selectedInd] = leftValues[1];
 					selected.Item2.Clip(selectedInd);
 					selected.Item2.IsDirtied = true;
+
+					canControl = false;
+					canCurveControl = false;
 				}
 
-				if (Manager.NativeManager.IsItemActive()) canControl = false;
+				if (Manager.NativeManager.IsItemActive())
+				{
+					canCurveControl = false;
+					canControl = false;
+					isDetailControlling = true;
+				}
 			}
 			else
 			{
@@ -456,9 +491,17 @@ namespace Effekseer.GUI.Dock
 					selected.Item2.RightValues[selectedInd] = rightValues[1];
 					selected.Item2.Clip(selectedInd);
 					selected.Item2.IsDirtied = true;
+
+					canControl = false;
+					canCurveControl = false;
 				}
 
-				if (Manager.NativeManager.IsItemActive()) canControl = false;
+				if (Manager.NativeManager.IsItemActive())
+				{
+					canCurveControl = false;
+					canControl = false;
+					isDetailControlling = true;
+				}
 			}
 			else
 			{
@@ -651,7 +694,7 @@ namespace Effekseer.GUI.Dock
 
 		void OnChanged()
 		{
-			var paramTreeNodes = Core.GetFCurveParameterNode();
+			var paramTreeNodes = Core.GetFCurveParameterNode(Core.Root);
 			SetParameters(paramTreeNodes);
 		}
 

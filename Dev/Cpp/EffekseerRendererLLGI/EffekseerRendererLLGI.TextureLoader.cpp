@@ -7,7 +7,8 @@ namespace EffekseerRendererLLGI
 {
 
 TextureLoader::TextureLoader(GraphicsDevice* graphicsDevice, ::Effekseer::FileInterface* fileInterface)
-	: m_fileInterface(fileInterface), graphicsDevice_(graphicsDevice)
+	: m_fileInterface(fileInterface)
+	, graphicsDevice_(graphicsDevice)
 {
 	ES_SAFE_ADDREF(graphicsDevice);
 
@@ -54,6 +55,24 @@ Effekseer::TextureData* TextureLoader::Load(const EFK_CHAR* path, ::Effekseer::T
 			textureData->TextureFormat = Effekseer::TextureFormatType::ABGR8;
 			textureData->Width = pngTextureLoader_.GetWidth();
 			textureData->Height = pngTextureLoader_.GetHeight();
+		}
+		else if (tgaTextureLoader_.Load(data_texture, size_texture))
+		{
+			LLGI::TextureInitializationParameter texParam;
+			texParam.Size = LLGI::Vec2I(tgaTextureLoader_.GetWidth(), tgaTextureLoader_.GetHeight());
+			auto texture = graphicsDevice_->GetGraphics()->CreateTexture(texParam);
+			auto buf = texture->Lock();
+
+			memcpy(buf, tgaTextureLoader_.GetData().data(), tgaTextureLoader_.GetWidth() * tgaTextureLoader_.GetHeight() * 4);
+
+			texture->Unlock();
+
+			textureData = new Effekseer::TextureData();
+			textureData->UserPtr = texture;
+			textureData->UserID = 0;
+			textureData->TextureFormat = Effekseer::TextureFormatType::ABGR8;
+			textureData->Width = tgaTextureLoader_.GetWidth();
+			textureData->Height = tgaTextureLoader_.GetHeight();
 		}
 
 		delete[] data_texture;

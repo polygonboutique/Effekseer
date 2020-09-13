@@ -179,7 +179,7 @@ namespace Effekseer.Data
 		public MaterialFileParameter(RendererCommonValues rcValues)
 		{
 			this.rcValues = rcValues;
-			Path = new Value.PathForMaterial(Resources.GetString("MaterialFilter"), true);
+			Path = new Value.PathForMaterial(rcValues.BasePath, Resources.GetString("MaterialFilter"), true);
 			Path.OnChanged += Path_OnChanged;
 		}
 
@@ -334,6 +334,7 @@ namespace Effekseer.Data
 					};
 
 					ValueStatus status = null;
+					string defaultPath = Utils.Misc.GetAbsolutePath(Path.AbsolutePath, texture.DefaultPath);
 
 					var foundValue = FindValue(key.ToString(), usedValueStatuses, withNameFlag);
 					if (foundValue != null)
@@ -344,27 +345,27 @@ namespace Effekseer.Data
 							status.IsShown = texture.IsParam;
 							isChanged = true;
 						}
-
+						
 						// update default path
-						if(texture.IsParam)
+						if (texture.IsParam)
 						{
 							if ((foundValue.Value as Value.PathForImage).AbsolutePath == string.Empty)
 							{
-								(foundValue.Value as Value.PathForImage).SetAbsolutePathDirectly(texture.DefaultPath);
+								(foundValue.Value as Value.PathForImage).SetAbsolutePathDirectly(defaultPath);
 								isChanged = true;
 							}
 
-							(foundValue.Value as Value.PathForImage).SetDefaultAbsolutePath(texture.DefaultPath);
+							(foundValue.Value as Value.PathForImage).SetDefaultAbsolutePath(defaultPath);
 						}
 						else
 						{
-							if((foundValue.Value as Value.PathForImage).AbsolutePath != texture.DefaultPath)
+							if((foundValue.Value as Value.PathForImage).AbsolutePath != defaultPath)
 							{
-								(foundValue.Value as Value.PathForImage).SetAbsolutePathDirectly(texture.DefaultPath);
+								(foundValue.Value as Value.PathForImage).SetAbsolutePathDirectly(defaultPath);
 								isChanged = true;
 							}
 
-							(foundValue.Value as Value.PathForImage).SetDefaultAbsolutePath(texture.DefaultPath);
+							(foundValue.Value as Value.PathForImage).SetDefaultAbsolutePath(defaultPath);
 						}
 					}
 					else
@@ -373,15 +374,15 @@ namespace Effekseer.Data
 						if (!withNameFlag) continue;
 
 						status = new ValueStatus();
-						var value = new Value.PathForImage(Resources.GetString("ImageFilter"), true, texture.DefaultPath);
+						var value = new Value.PathForImage(rcValues.BasePath, Resources.GetString("ImageFilter"), true, texture.DefaultPath);
 						status.Value = value;
 						status.IsShown = texture.IsParam;
 						status.Priority = texture.Priority;
 						valueStatuses.Add(status);
 
-						if(!string.IsNullOrEmpty(texture.DefaultPath))
+						if(!string.IsNullOrEmpty(defaultPath))
 						{
-							value.SetAbsolutePathDirectly(texture.DefaultPath);
+							value.SetAbsolutePathDirectly(defaultPath);
 						}
 
 						isChanged = true;
@@ -655,10 +656,13 @@ namespace Effekseer.Data
 
 				if(version > 0)
 				{
+					// TODO : rename to unity flag
+#if SCRIPT_ENABLED
 					var labels = key.Split(' ');
 					status.Name = System.Net.WebUtility.UrlDecode(labels[0]);
 					status.UniformName = System.Net.WebUtility.UrlDecode(labels[1]);
 					status.Footer = labels[2];
+#endif
 					return status;
 				}
 				else
@@ -711,7 +715,12 @@ namespace Effekseer.Data
 
 			public override string ToString()
 			{
+				// TODO : rename to unity flag
+#if SCRIPT_ENABLED
 				return System.Net.WebUtility.UrlEncode(Name) + " " + System.Net.WebUtility.UrlEncode(UniformName) + " " + Footer;
+#else
+				return string.Empty;
+#endif
 			}
 		}
 
@@ -727,6 +736,11 @@ namespace Effekseer.Data
 			get;
 			private set;
 		}
+
+		[Selected(ID = 3, Value = (int)MaterialType.Default)]
+		[Selected(ID = 3, Value = (int)MaterialType.Lighting)]
+		[Key(key = "BRS_EmissiveScaling")]
+		public Value.Int EmissiveScaling { get; private set; }
 
 		[Selected(ID = 3, Value = (int)MaterialType.Default)]
 		[Selected(ID = 3, Value = (int)MaterialType.BackDistortion)]
@@ -846,6 +860,7 @@ namespace Effekseer.Data
 		[Selected(ID = 2, Value = 1)]
 		[Selected(ID = 2, Value = 2)]
 		[Selected(ID = 2, Value = 3)]
+		[Selected(ID = 2, Value = 4)]
 		[IO(Export = true)]
 		[Key(key = "BRS_UVTextureReferenceTarget")]
 		public Value.Enum<UVTextureReferenceTargetType> UVTextureReferenceTarget
@@ -864,7 +879,7 @@ namespace Effekseer.Data
 
 		[Selected(ID = 2, Value = 2)]
 		[IO(Export = true)]
-		public UVAnimationParamater UVAnimation { get; private set; }
+		public UVAnimationSupportedFrameBlendParameter UVAnimation { get; private set; }
 
 		[Selected(ID = 2, Value = 3)]
 		[IO(Export = true)]
@@ -881,82 +896,6 @@ namespace Effekseer.Data
 			private set;
 		}
 
-#if __EFFEKSEER_BUILD_VERSION16__
-		[Selector(ID = 100)]
-		[IO(Export = true)]
-		[Name(language = Language.Japanese, value = "アルファ画像を有効")]
-		public Value.Boolean EnableAlphaTexture { get; private set; }
-
-		[IO(Export = true)]
-		[Selected(ID = 100, Value = 0)]
-		public AlphaTextureParameter AlphaTextureParam { get; private set; }
-
-		public class AlphaTextureParameter
-		{
-			[Name(language = Language.Japanese, value = "アルファ画像")]
-			[Name(language = Language.English, value = "α Texture")]
-			public Value.PathForImage Texture
-			{
-				get; private set;
-			}
-
-			[Name(language = Language.Japanese, value = "フィルタ(アルファ画像)")]
-			[Name(language = Language.English, value = "Filter(α Texture)")]
-			public Value.Enum<FilterType> Filter { get; private set; }
-
-			[Name(language = Language.Japanese, value = "外側(アルファ画像)")]
-			[Name(language = Language.English, value = "Wrap(α Texture)")]
-			public Value.Enum<WrapType> Wrap { get; private set; }
-
-			[Selector(ID = 101)]
-			[Name(language = Language.Japanese, value = "UV(アルファ画像)")]
-			[Name(language = Language.English, value = "UV(α Texture)")]
-			public Value.Enum<UVType> UV
-			{
-				get;
-				private set;
-			}
-
-			[Selected(ID = 101, Value = 0)]
-			[IO(Export = true)]
-			public UVDefaultParamater UVDefault { get; private set; }
-
-			[Selected(ID = 101, Value = 1)]
-			[IO(Export = true)]
-			public UVFixedParamater UVFixed { get; private set; }
-
-			[Selected(ID = 101, Value = 2)]
-			[IO(Export = true)]
-			public UVAnimationParamater UVAnimation { get; private set; }
-
-			[Selected(ID = 101, Value = 3)]
-			[IO(Export = true)]
-			public UVScrollParamater UVScroll { get; private set; }
-
-			[Selected(ID = 101, Value = 4)]
-			[IO(Export = true)]
-			public UVFCurveParamater UVFCurve { get; private set; }
-
-			public AlphaTextureParameter()
-			{
-				Texture = new Value.PathForImage(Resources.GetString("ImageFilter"), true, "");
-				Filter = new Value.Enum<FilterType>(FilterType.Linear);
-				Wrap = new Value.Enum<WrapType>(WrapType.Repeat);
-				UV = new Value.Enum<UVType>();
-				UVDefault = new UVDefaultParamater();
-				UVFixed = new UVFixedParamater();
-				UVAnimation = new UVAnimationParamater();
-				UVScroll = new UVScrollParamater();
-				UVFCurve = new UVFCurveParamater();
-			}
-		}
-
-		[Name(language = Language.Japanese, value = "アルファクランチ")]
-		[Name(language = Language.English, value = "Alpha Crunch")]
-		[IO(Export = true)]
-		public Value.Enum<AlphaCrunchType> AlphaCrunchTypeValue { get; private set; }
-#endif
-
 		[IO(Export = true)]
 		[Key(key = "BRS_CustomData1")]
 		public CustomDataParameter CustomData1 { get; private set; }
@@ -964,16 +903,22 @@ namespace Effekseer.Data
 		[IO(Export = true)]
 		[Key(key = "BRS_CustomData2")]
 		public CustomDataParameter CustomData2 { get; private set; }
-		internal RendererCommonValues()
+
+		internal Value.Path BasePath { get; private set; }
+
+		internal RendererCommonValues(Value.Path basepath)
 		{
+			BasePath = basepath;
 			Material = new Value.Enum<MaterialType>(MaterialType.Default);
 			MaterialFile = new MaterialFileParameter(this);
 
-			ColorTexture = new Value.PathForImage(Resources.GetString("ImageFilter"), true, "");
+			EmissiveScaling = new Value.Int(1, int.MaxValue, 1);
+
+			ColorTexture = new Value.PathForImage(basepath, Resources.GetString("ImageFilter"), true, "");
 			Filter = new Value.Enum<FilterType>(FilterType.Linear);
 			Wrap = new Value.Enum<WrapType>(WrapType.Repeat);
 
-			NormalTexture = new Value.PathForImage(Resources.GetString("ImageFilter"), true, "");
+			NormalTexture = new Value.PathForImage(basepath, Resources.GetString("ImageFilter"), true, "");
 			Filter2 = new Value.Enum<FilterType>(FilterType.Linear);
 			Wrap2 = new Value.Enum<WrapType>(WrapType.Repeat);
 
@@ -993,7 +938,7 @@ namespace Effekseer.Data
 
 			UVDefault = new UVDefaultParamater();
 			UVFixed = new UVFixedParamater();
-			UVAnimation = new UVAnimationParamater();
+			UVAnimation = new UVAnimationSupportedFrameBlendParameter();
 			UVScroll = new UVScrollParamater();
 			UVFCurve = new UVFCurveParamater();
 
@@ -1003,13 +948,6 @@ namespace Effekseer.Data
 			ColorInheritType = new Value.Enum<ParentEffectType>(ParentEffectType.NotBind);
 
 			DistortionIntensity = new Value.Float(1.0f, float.MaxValue, float.MinValue, 0.1f);
-
-#if __EFFEKSEER_BUILD_VERSION16__
-			EnableAlphaTexture = new Value.Boolean(false);
-			AlphaTextureParam = new AlphaTextureParameter();
-
-			AlphaCrunchTypeValue = new Value.Enum<AlphaCrunchType>(RendererCommonValues.AlphaCrunchType.None);
-#endif
 
 			CustomData1 = new CustomDataParameter(1);
 			CustomData2 = new CustomDataParameter(2);
@@ -1100,7 +1038,7 @@ namespace Effekseer.Data
 			[Key(key = "UVAnimationParamater_Start")]
 			public Value.Vector2D Start { get; private set; }
 
-			[Key(key = "UVAnimationParamater_Size")] 
+			[Key(key = "UVAnimationParamater_Size")]
 			public Value.Vector2D Size { get; private set; }
 
 			[Key(key = "UVAnimationParamater_FrameLength")]
@@ -1118,11 +1056,6 @@ namespace Effekseer.Data
 			[Key(key = "UVAnimationParamater_StartSheet")]
 			public Value.IntWithRandom StartSheet { get; private set; }
 
-#if __EFFEKSEER_BUILD_VERSION16__
-			[Name(value = "アニメーション補間", language = Language.Japanese)]
-			public Value.Enum<FlipbookInterpolationType> FlipbookInterpolationType { get; private set; }
-#endif
-
 			public UVAnimationParamater()
 			{
 				Start = new Value.Vector2D();
@@ -1132,10 +1065,22 @@ namespace Effekseer.Data
 				FrameCountY = new Value.Int(1, int.MaxValue, 1);
 				LoopType = new Value.Enum<LoopType>(RendererCommonValues.LoopType.Once);
 				StartSheet = new Value.IntWithRandom(0, int.MaxValue, 0);
+			}
+		}
 
-#if __EFFEKSEER_BUILD_VERSION16__
+		public class UVAnimationSupportedFrameBlendParameter
+		{
+			[IO(Export = true)]
+			public UVAnimationParamater AnimationParams { get; private set; }
+
+			[IO(Export = true)]
+			[Key(key = "UVAnimationSupportedFrameBlendParameter_Type")]
+			public Value.Enum<FlipbookInterpolationType> FlipbookInterpolationType { get; private set; }
+
+			public UVAnimationSupportedFrameBlendParameter() : base()
+			{
+				AnimationParams = new UVAnimationParamater();
 				FlipbookInterpolationType = new Value.Enum<FlipbookInterpolationType>(RendererCommonValues.FlipbookInterpolationType.None);
-#endif
 			}
 		}
 
@@ -1237,41 +1182,13 @@ namespace Effekseer.Data
 			ReverceLoop = 2,
 		}
 
-#if __EFFEKSEER_BUILD_VERSION16__
 		public enum FlipbookInterpolationType : int
 		{
-			[Name(value = "なし", language = Language.Japanese)]
-			[Name(value = "None", language = Language.English)]
+			[Key(key = "FlipbookInterpolationType_None")]
 			None = 0,
 
-			[Name(value = "線形補間", language = Language.Japanese)]
-			[Name(value = "Lerp", language = Language.English)]
+			[Key(key = "FlipbookInterpolationType_Lerp")]
 			Lerp = 1,
 		}
-
-		public enum AlphaCrunchType : int
-		{
-			[Name(value = "なし", language = Language.Japanese)]
-			[Name(value = "None", language = Language.English)]
-			None = 0,
-
-			[Name(value = "アルファ閾値", language = Language.Japanese)]
-			[Name(value = "Alpha Threshold", language = Language.English)]
-			AlphaThreashold = 1,
-
-			[Name(value = "4点補間", language = Language.Japanese)]
-			[Name(value = "Four Point Interpolation", language = Language.English)]
-			FourPointInterpolation = 2,
-
-			[Name(value = "イージング", language = Language.Japanese)]
-			[Name(value = "Easing", language = Language.English)]
-			Easing = 3,
-
-			[Name(value = "Fカーブ", language = Language.Japanese)]
-			[Name(value = "F Curve", language = Language.English)]
-			FCurve = 4,
-		}
-#endif
-
 	}
 }

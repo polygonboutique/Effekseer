@@ -50,6 +50,9 @@ effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.MaterialLoader.h')
 
 effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.Model.h')
 
+effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.Curve.h')
+effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.CurveLoader.h')
+
 effekseerHeader.readLines('Effekseer/Effekseer/Sound/Effekseer.SoundPlayer.h')
 
 effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.SoundLoader.h')
@@ -58,6 +61,8 @@ effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.Setting.h')
 
 effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.Server.h')
 effekseerHeader.readLines('Effekseer/Effekseer/Effekseer.Client.h')
+
+effekseerHeader.readLines('Effekseer/Effekseer/Backend/GraphicsDevice.h')
 
 effekseerHeader.output('Effekseer/Effekseer.h')
 

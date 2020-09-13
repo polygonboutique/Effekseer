@@ -2,9 +2,9 @@
 #ifndef __EFFEKSEERRENDERER_LLGI_RENDERER_IMPLEMENTED_H__
 #define __EFFEKSEERRENDERER_LLGI_RENDERER_IMPLEMENTED_H__
 
+#include "../EffekseerRendererCommon/EffekseerRenderer.CommonUtils.h"
 #include "../EffekseerRendererCommon/EffekseerRenderer.RenderStateBase.h"
 #include "../EffekseerRendererCommon/EffekseerRenderer.StandardRenderer.h"
-#include "../EffekseerRendererCommon/EffekseerRenderer.CommonUtils.h"
 #include "EffekseerRendererLLGI.Base.h"
 #include "EffekseerRendererLLGI.Renderer.h"
 #include <LLGI.CommandList.h>
@@ -32,7 +32,7 @@ public:
 	Shader* shader = nullptr;
 	EffekseerRenderer::RenderStateBase::State state;
 	LLGI::TopologyType topologyType;
-    LLGI::RenderPassPipelineState* renderPassPipelineState = nullptr;
+	LLGI::RenderPassPipelineState* renderPassPipelineState = nullptr;
 	bool operator<(const PiplineStateKey& v) const;
 };
 
@@ -65,14 +65,19 @@ protected:
 	IndexBuffer* m_indexBufferForWireframe = nullptr;
 	int32_t m_squareMaxCount;
 
-	Shader* m_shader = nullptr;
-	Shader* m_shader_lighting = nullptr;
-	Shader* m_shader_distortion = nullptr;
+	Shader* shader_ = nullptr;
+	Shader* shader_lit_ = nullptr;
+	Shader* shader_unlit_ = nullptr;
+
+	Shader* shader_ad_unlit_ = nullptr;
+	Shader* shader_ad_lit_ = nullptr;
+	Shader* shader_ad_distortion_ = nullptr;
+
 	Shader* currentShader = nullptr;
 
 	bool isReversedDepth_ = false;
 
-	EffekseerRenderer::StandardRenderer<RendererImplemented, Shader, Vertex, VertexDistortion>* m_standardRenderer;
+	EffekseerRenderer::StandardRenderer<RendererImplemented, Shader>* m_standardRenderer;
 
 	::Effekseer::CoordinateSystem m_coordinateSystem;
 
@@ -92,8 +97,8 @@ protected:
 
 	LLGI::PipelineState* GetOrCreatePiplineState();
 
-    virtual void GenerateVertexBuffer();
-    
+	virtual void GenerateVertexBuffer();
+
 	virtual void GenerateIndexBuffer();
 
 public:
@@ -108,8 +113,10 @@ public:
 
 	~RendererImplemented();
 
-	void OnLostDevice() override;;
-	void OnResetDevice() override;;
+	void OnLostDevice() override;
+	;
+	void OnResetDevice() override;
+	;
 
 	bool Initialize(GraphicsDevice* graphicsDevice, LLGI::RenderPassPipelineState* renderPassPipelineState, bool isReversedDepth);
 
@@ -119,7 +126,7 @@ public:
 
 	void SetRestorationOfStatesFlag(bool flag) override;
 
-    void SetRenderPassPipelineState(LLGI::RenderPassPipelineState* renderPassPipelineState);
+	void SetRenderPassPipelineState(LLGI::RenderPassPipelineState* renderPassPipelineState);
 
 	bool BeginRendering() override;
 
@@ -127,9 +134,15 @@ public:
 
 	void SetCommandList(EffekseerRenderer::CommandList* commandList) override;
 
-	GraphicsDevice* GetGraphicsDevice() const { return graphicsDevice_; }
+	GraphicsDevice* GetGraphicsDevice() const
+	{
+		return graphicsDevice_;
+	}
 
-	LLGI::Graphics* GetGraphics() const override { return graphicsDevice_->GetGraphics(); }
+	LLGI::Graphics* GetGraphics() const override
+	{
+		return graphicsDevice_->GetGraphics();
+	}
 
 	/**
 		@brief	頂点バッファ取得
@@ -198,7 +211,7 @@ public:
 
 	void SetDistortingCallback(EffekseerRenderer::DistortingCallback* callback) override;
 
-	EffekseerRenderer::StandardRenderer<RendererImplemented, Shader, Vertex, VertexDistortion>* GetStandardRenderer()
+	EffekseerRenderer::StandardRenderer<RendererImplemented, Shader>* GetStandardRenderer()
 	{
 		return m_standardRenderer;
 	}
@@ -208,11 +221,15 @@ public:
 	void SetIndexBuffer(IndexBuffer* indexBuffer);
 	void SetIndexBuffer(LLGI::IndexBuffer* indexBuffer);
 
+	void SetVertexBuffer(Effekseer::Backend::VertexBuffer* vertexBuffer, int32_t stride);
+	void SetIndexBuffer(Effekseer::Backend::IndexBuffer* indexBuffer);
+
 	void SetLayout(Shader* shader);
 	void DrawSprites(int32_t spriteCount, int32_t vertexOffset);
 	void DrawPolygon(int32_t vertexCount, int32_t indexCount);
+	void DrawPolygonInstanced(int32_t vertexCount, int32_t indexCount, int32_t instanceCount);
 
-	Shader* GetShader(bool useTexture, ::Effekseer::RendererMaterialType materialType) const;
+	Shader* GetShader(::EffekseerRenderer::StandardRendererShaderType type) const;
 	void BeginShader(Shader* shader);
 	void EndShader(Shader* shader);
 
@@ -228,9 +245,18 @@ public:
 
 	void DeleteProxyTexture(Effekseer::TextureData* data) override;
 
-	virtual int GetRef() override { return ::Effekseer::ReferenceObject::GetRef(); }
-	virtual int AddRef() override { return ::Effekseer::ReferenceObject::AddRef(); }
-	virtual int Release() override { return ::Effekseer::ReferenceObject::Release(); }
+	virtual int GetRef() override
+	{
+		return ::Effekseer::ReferenceObject::GetRef();
+	}
+	virtual int AddRef() override
+	{
+		return ::Effekseer::ReferenceObject::AddRef();
+	}
+	virtual int Release() override
+	{
+		return ::Effekseer::ReferenceObject::Release();
+	}
 };
 
 } // namespace EffekseerRendererLLGI

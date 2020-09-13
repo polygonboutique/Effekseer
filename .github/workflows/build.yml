@@ -23,6 +23,22 @@ jobs:
         run: python build.py
         shell: cmd
 
+      - name: Test
+        run: |
+         cd build/Dev/Cpp/Test/Release/
+         Test.exe ci
+        shell: cmd
+
+      - name: Upload Test
+        uses: actions/upload-artifact@v1
+        with:
+          name: Test
+          path: build/Dev/Cpp/Test/Release/
+
+      - name: Test
+        run: python Script/test_screenshot.py
+        shell: cmd
+
       - name: Release Runtime
         run: release_runtime.bat
         shell: cmd
@@ -30,7 +46,7 @@ jobs:
       - name: Upload Runtime
         uses: actions/upload-artifact@v1
         with:
-          name: EffekseerRuntime152e
+          name: EffekseerRuntime152g
           path: EffekseerRuntime150
 
       - name: Release Tool
@@ -40,5 +56,5 @@ jobs:
       - name: Upload Tool
         uses: actions/upload-artifact@v1
         with:
-          name: Effekseer152eWin
+          name: Effekseer152gWin
           path: Effekseer150Win

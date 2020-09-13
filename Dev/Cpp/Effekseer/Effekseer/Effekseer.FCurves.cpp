@@ -7,7 +7,10 @@
 namespace Effekseer
 {
 
-FCurve::FCurve(float defaultValue) : defaultValue_(defaultValue) {}
+FCurve::FCurve(float defaultValue)
+	: defaultValue_(defaultValue)
+{
+}
 
 int32_t FCurve::Load(void* data, int32_t version)
 {
@@ -132,7 +135,10 @@ float FCurve::GetValue(float living, float life, FCurveTimelineType type) const
 	}
 }
 
-float FCurve::GetOffset(InstanceGlobal& g) const { return g.GetRand(offsetMin_, offsetMax_); }
+float FCurve::GetOffset(IRandObject& g) const
+{
+	return g.GetRand(offsetMin_, offsetMax_);
+}
 
 void FCurve::ChangeCoordinate()
 {
@@ -175,9 +181,15 @@ int32_t FCurveScalar::Load(void* data, int32_t version)
 	return size;
 }
 
-float FCurveScalar::GetValues(float living, float life) const { return S.GetValue(living, life, Timeline); }
+float FCurveScalar::GetValues(float living, float life) const
+{
+	return S.GetValue(living, life, Timeline);
+}
 
-float FCurveScalar::GetOffsets(InstanceGlobal& g) const { return S.GetOffset(g); }
+float FCurveScalar::GetOffsets(IRandObject& g) const
+{
+	return S.GetOffset(g);
+}
 
 int32_t FCurveVector2D::Load(void* data, int32_t version)
 {
@@ -209,7 +221,7 @@ Vec2f FCurveVector2D::GetValues(float living, float life) const
 	return Vec2f{x, y};
 }
 
-Vec2f FCurveVector2D::GetOffsets(InstanceGlobal& g) const
+Vec2f FCurveVector2D::GetOffsets(IRandObject& g) const
 {
 	auto x = X.GetOffset(g);
 	auto y = Y.GetOffset(g);
@@ -251,7 +263,7 @@ Vec3f FCurveVector3D::GetValues(float living, float life) const
 	return {x, y, z};
 }
 
-Vec3f FCurveVector3D::GetOffsets(InstanceGlobal& g) const
+Vec3f FCurveVector3D::GetOffsets(IRandObject& g) const
 {
 	auto x = X.GetOffset(g);
 	auto y = Y.GetOffset(g);
@@ -300,7 +312,7 @@ std::array<float, 4> FCurveVectorColor::GetValues(float living, float life) cons
 	return std::array<float, 4>{r, g, b, a};
 }
 
-std::array<float, 4> FCurveVectorColor::GetOffsets(InstanceGlobal& gl) const
+std::array<float, 4> FCurveVectorColor::GetOffsets(IRandObject& gl) const
 {
 	auto r = R.GetOffset(gl);
 	auto g = G.GetOffset(gl);

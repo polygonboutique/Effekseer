@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Effekseer.Data.Value;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -190,6 +191,14 @@ namespace Effekseer.Data
             private set;
         }
 
+		[Selected(ID = 0, Value = 6)]
+		[IO(Export = true)]
+		public ProcedualModelParamater ProcedualModel
+		{
+			get;
+			private set;
+		} = new ProcedualModelParamater();
+
 		[Selected(ID = 0, Value = 5)]
 		[IO(Export = true)]
 		public ModelParamater Model
@@ -198,16 +207,28 @@ namespace Effekseer.Data
 			private set;
 		}
 
-		internal RendererValues()
+		[Selector(ID = 100)]
+		[IO(Export = true)]
+		[Key(key = "ModelParameter_EnableFalloff")]
+		public Value.Boolean EnableFalloff { get; private set; }
+
+		[Selected(ID = 100, Value = 0)]
+		[IO(Export = true)]
+		public FalloffParameter FalloffParam { get; private set; }
+
+		internal RendererValues(Path basepath)
 		{
 			Type = new Value.Enum<ParamaterType>(ParamaterType.Sprite);
 			TextureUVType = new TextureUVTypeParameter();
 
-			Sprite = new SpriteParamater();
-            Ribbon = new RibbonParamater();
-			Track = new TrackParameter();
-            Ring = new RingParamater();
-			Model = new ModelParamater();
+			Sprite = new SpriteParamater(basepath);
+            Ribbon = new RibbonParamater(basepath);
+			Track = new TrackParameter(basepath);
+            Ring = new RingParamater(basepath);
+			Model = new ModelParamater(basepath);
+
+			EnableFalloff = new Value.Boolean(false);
+			FalloffParam = new FalloffParameter();
 		}
 
 		public class SpriteParamater
@@ -307,7 +328,7 @@ namespace Effekseer.Data
 				private set;
 			}
 
-			public SpriteParamater()
+			public SpriteParamater(Path basepath)
 			{
 				RenderingOrder = new Value.Enum<Data.RenderingOrder>(Data.RenderingOrder.FirstCreatedInstanceIsFirst);
 
@@ -332,7 +353,7 @@ namespace Effekseer.Data
 				Position_Fixed_LR = new Value.Vector2D(0.5f, -0.5f);
 				Position_Fixed_UL = new Value.Vector2D(-0.5f, 0.5f);
 				Position_Fixed_UR = new Value.Vector2D(0.5f, 0.5f);
-				ColorTexture = new Value.Path("画像ファイル (*.png)|*.png", true, "");
+				ColorTexture = new Value.Path(basepath, "画像ファイル (*.png)|*.png", true, "");
 			}
 
             public enum ColorType : int
@@ -436,7 +457,7 @@ namespace Effekseer.Data
 				private set;
 			}
 
-			public RibbonParamater()
+			public RibbonParamater(Path basepath)
 			{
 				AlphaBlend = new Value.Enum<AlphaBlendType>(AlphaBlendType.Blend);
 				ViewpointDependent = new Value.Boolean(false);
@@ -455,7 +476,7 @@ namespace Effekseer.Data
 
 				SplineDivision = new Value.Int(1, int.MaxValue, 1);
 
-				ColorTexture = new Value.Path(Resources.GetString("ImageFilter"), true, "");
+				ColorTexture = new Value.Path(basepath, Resources.GetString("ImageFilter"), true, "");
 			}
 
             public enum ColorAllType : int
@@ -661,7 +682,7 @@ namespace Effekseer.Data
                 private set;
             }
 
-            public RingParamater()
+            public RingParamater(Path basepath)
             {
 				RingShape = new RingShapeParameter();
                 RenderingOrder = new Value.Enum<Data.RenderingOrder>(Data.RenderingOrder.FirstCreatedInstanceIsFirst);
@@ -708,7 +729,7 @@ namespace Effekseer.Data
                 InnerColor_Random = new Value.ColorWithRandom(255, 255, 255, 0);
                 InnerColor_Easing = new ColorEasingParamater();
 
-                ColorTexture = new Value.Path(Resources.GetString("ImageFilter"), true, "");
+                ColorTexture = new Value.Path(basepath, Resources.GetString("ImageFilter"), true, "");
             }
 
 			/// <summary>
@@ -846,10 +867,54 @@ namespace Effekseer.Data
 			[Name(language = Language.English, value = "Culling")]
 			public Value.Enum<CullingValues> Culling { get; private set; }
 
-			public ModelParamater()
+			public ModelParamater(Value.Path basepath)
 			{
-                Model = new Value.PathForModel(Resources.GetString("ModelFilter"), true, "");
+                Model = new Value.PathForModel(basepath, Resources.GetString("ModelFilter"), true, "");
 
+				Billboard = new Value.Enum<BillboardType>(BillboardType.Fixed);
+
+				Culling = new Value.Enum<CullingValues>(Data.CullingValues.Front);
+
+				Color = new Value.Enum<StandardColorType>(StandardColorType.Fixed);
+				Color_Fixed = new Value.Color(255, 255, 255, 255);
+				Color_Random = new Value.ColorWithRandom(255, 255, 255, 255);
+				Color_Easing = new ColorEasingParamater();
+				Color_FCurve = new ColorFCurveParameter();
+			}
+
+			[Selector(ID = 0)]
+			[Name(language = Language.Japanese, value = "全体色")]
+			public Value.Enum<StandardColorType> Color { get; private set; }
+
+			[Selected(ID = 0, Value = 0)]
+			public Value.Color Color_Fixed { get; private set; }
+
+			[Selected(ID = 0, Value = 1)]
+			public Value.ColorWithRandom Color_Random { get; private set; }
+
+			[Selected(ID = 0, Value = 2)]
+			[IO(Export = true)]
+			public ColorEasingParamater Color_Easing { get; private set; }
+
+			[Selected(ID = 0, Value = 3)]
+			[IO(Export = true)]
+			public ColorFCurveParameter Color_FCurve { get; private set; }
+		}
+
+		public class ProcedualModelParamater
+		{
+			public ProcedualModelParameter Parameter { get; private set; } = new ProcedualModelParameter();
+
+			[Name(language = Language.Japanese, value = "配置方法")]
+			[Name(language = Language.English, value = "Configuration")]
+			public Value.Enum<BillboardType> Billboard { get; private set; }
+
+			[Name(language = Language.Japanese, value = "カリング")]
+			[Name(language = Language.English, value = "Culling")]
+			public Value.Enum<CullingValues> Culling { get; private set; }
+
+			public ProcedualModelParamater()
+			{
 				Billboard = new Value.Enum<BillboardType>(BillboardType.Fixed);
 
 				Culling = new Value.Enum<CullingValues>(Data.CullingValues.Front);
@@ -1031,7 +1096,7 @@ namespace Effekseer.Data
 			public ColorFCurveParameter ColorRightMiddle_FCurve { get; private set; }
 
 			
-			public TrackParameter()
+			public TrackParameter(Path basepath)
 			{
 				TrackSizeFor = new Value.Enum<TrackSizeType>(TrackSizeType.Fixed);
 				TrackSizeFor_Fixed = new Value.Float(1, float.MaxValue, 0);
@@ -1082,6 +1147,46 @@ namespace Effekseer.Data
 			}
 		}
 
+		public class FalloffParameter
+		{
+			[IO(Export = true)]
+			[Key(key = "FalloffParameter_ColorBlendType")]
+			public Value.Enum<BlendType> ColorBlendType { get; private set; }
+
+			[IO(Export = true)]
+			[Key(key = "FalloffParameter_BeginColor")]
+			public Value.Color BeginColor { get; private set; }
+
+			[IO(Export = true)]
+			[Key(key = "FalloffParameter_EndColor")]
+			public Value.Color EndColor { get; private set; }
+
+			[IO(Export = true)]
+			[Key(key = "FalloffParameter_Pow")]
+			public Value.Float Pow { get; private set; }
+
+			public FalloffParameter()
+			{
+				ColorBlendType = new Value.Enum<BlendType>(BlendType.Add);
+				BeginColor = new Value.Color(0, 0, 0, 255);
+				EndColor = new Value.Color(255, 255, 255, 255);
+				Pow = new Value.Float(1, 100, 1);
+			}
+
+			public enum BlendType : int
+			{
+				[Key(key = "FalloffParameter_BlendType_Add")]
+				Add = 0,
+
+				[Key(key = "FalloffParameter_BlendType_Sub")]
+				Sub = 1,
+
+				[Key(key = "FalloffParameter_BlendType_Mul")]
+				Mul = 2,
+			}
+
+		}
+
 		public enum BillboardType : int
 		{
 			[Key(key = "BillboardType_Billboard")]
@@ -1115,6 +1220,10 @@ namespace Effekseer.Data
 			[Key(key = "RS_ParameterType_Ring")]
 			[Icon(code = "\xec24")]
 			Ring = 4,
+
+			[Key(key = "RS_ParameterType_Model")]
+			[Icon(code = "\xec25")]
+			ProcedualModel = 6,
 
 			[Key(key = "RS_ParameterType_Model")]
 			[Icon(code = "\xec25")]

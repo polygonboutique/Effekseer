@@ -22,13 +22,13 @@ Requirements
 
 [How to install git-lfs](https://github.com/git-lfs/git-lfs/wiki/Installation)
 
-### Linux (not work now, pelase help it)
+### Linux
 
 - git
 - git-lfs
 - g++
-- mono-devel
-- libx11-dev libgl1-mesa-dev libxrandr-dev libxi-dev x11proto-xf86vidmode-dev xorg-dev libglu1-mesa-dev libpulse-dev libgtk-3-dev libopenal-dev
+- dotnet-core
+- libx11-dev libgl1-mesa-dev libxrandr-dev libxi-dev x11proto-xf86vidmode-dev libx11-xcb-dev xorg-dev libglu1-mesa-dev libpulse-dev libgtk-3-dev libopenal-dev python3-distutils
 
 Get code and resources
 ----------
@@ -96,13 +96,17 @@ Effekseer.exe
 ```
 
 ### macOS
+
 ```
 python3 build.py
 cd Dev/release
 mono Effekseer.exe
 ```
 
-Attention
-----------
+###Linux
 
-- fbxToEffekseerModelConverter is downloaded from https://github.com/effekseer/Effekseer/releases/tag/Prebuild
+```
+python3 build.py
+cd Dev/release
+./Effekseer
+```

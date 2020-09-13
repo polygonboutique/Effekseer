@@ -9,6 +9,8 @@
 #include "Effekseer.Effect.h"
 #include "Effekseer.InternalScript.h"
 #include "Effekseer.Vector3D.h"
+#include "Model/ProcedualModelParameter.h"
+#include "Utils/Effekseer.CustomAllocator.h"
 #include <assert.h>
 #include <memory>
 
@@ -24,14 +26,16 @@ namespace Effekseer
 class EffectReloadingBackup
 {
 public:
-	template <class T> class Holder
+	template <class T>
+	class Holder
 	{
 	public:
 		T value;
 		int counter = 0;
 	};
 
-	template <class T> class HolderCollection
+	template <class T>
+	class HolderCollection
 	{
 		std::map<std::u16string, Holder<T>> collection;
 
@@ -74,7 +78,10 @@ public:
 			}
 		}
 
-		std::map<std::u16string, Holder<T>>& GetCollection() { return collection; }
+		std::map<std::u16string, Holder<T>>& GetCollection()
+		{
+			return collection;
+		}
 	};
 
 	HolderCollection<TextureData*> images;
@@ -83,6 +90,7 @@ public:
 	HolderCollection<void*> sounds;
 	HolderCollection<void*> models;
 	HolderCollection<MaterialData*> materials;
+	HolderCollection<void*> curves;
 };
 
 /**
@@ -95,11 +103,7 @@ class EffectImplemented : public Effect, public ReferenceObject
 	friend class EffectFactory;
 	friend class Instance;
 
-	#ifdef __EFFEKSEER_BUILD_VERSION16__
 	static const int32_t SupportBinaryVersion = 1600;
-#else
-	static const int32_t SupportBinaryVersion = 1500;
-	#endif
 
 protected:
 	ManagerImplemented* m_pManager;
@@ -132,9 +136,16 @@ protected:
 	EFK_CHAR** modelPaths_ = nullptr;
 	void** models_ = nullptr;
 
+	CustomVector<Model*> procedualModels_;
+	CustomVector<ProcedualModelParameter> procedualModelParameters_;
+
 	int32_t materialCount_ = 0;
 	EFK_CHAR** materialPaths_ = nullptr;
 	MaterialData** materials_ = nullptr;
+
+	int32_t curveCount_ = 0;
+	EFK_CHAR** curvePaths_ = nullptr;
+	void** curves_ = nullptr;
 
 	std::u16string name_;
 	std::basic_string<EFK_CHAR> m_materialPath;
@@ -165,7 +176,8 @@ protected:
 		CullingShape Shape;
 		Vector3D Location;
 
-		union {
+		union
+		{
 			struct
 			{
 			} None;
@@ -231,6 +243,11 @@ public:
 
 	void SetLoadingParameter(ReferenceObject* obj);
 
+	std::vector<InternalScript>& GetDynamicEquation()
+	{
+		return dynamicEquation;
+	}
+
 private:
 	/**
 		@brief	マネージャー取得
@@ -294,6 +311,18 @@ public:
 
 	const EFK_CHAR* GetMaterialPath(int n) const override;
 
+	void* GetCurve(int n) const override;
+
+	int32_t GetCurveCount() const override;
+
+	const EFK_CHAR* GetCurvePath(int n) const override;
+
+	Model* GetProcedualModel(int n) const override;
+
+	int32_t GetProcedualModelCount() const override;
+
+	const ProcedualModelParameter* GetProcedualModelParameter(int n) const override;
+
 	void SetTexture(int32_t index, TextureType type, TextureData* data) override;
 
 	void SetSound(int32_t index, void* data) override;
@@ -301,6 +330,8 @@ public:
 	void SetModel(int32_t index, void* data) override;
 
 	void SetMaterial(int32_t index, MaterialData* data) override;
+
+	void SetCurve(int32_t index, void* data) override;
 
 	/**
 		@brief	エフェクトのリロードを行う。
@@ -342,9 +373,18 @@ public:
 
 	EffectTerm CalculateTerm() const override;
 
-	virtual int GetRef() override { return ReferenceObject::GetRef(); }
-	virtual int AddRef() override { return ReferenceObject::AddRef(); }
-	virtual int Release() override { return ReferenceObject::Release(); }
+	virtual int GetRef() override
+	{
+		return ReferenceObject::GetRef();
+	}
+	virtual int AddRef() override
+	{
+		return ReferenceObject::AddRef();
+	}
+	virtual int Release() override
+	{
+		return ReferenceObject::Release();
+	}
 };
 //----------------------------------------------------------------------------------
 //

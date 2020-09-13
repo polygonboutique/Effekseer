@@ -12,7 +12,8 @@
 namespace EffekseerRendererDX11
 {
 
-MaterialLoader::MaterialLoader(Renderer* renderer, ::Effekseer::FileInterface* fileInterface) : fileInterface_(fileInterface)
+MaterialLoader::MaterialLoader(Renderer* renderer, ::Effekseer::FileInterface* fileInterface)
+	: fileInterface_(fileInterface)
 {
 	if (fileInterface == nullptr)
 	{
@@ -23,7 +24,10 @@ MaterialLoader::MaterialLoader(Renderer* renderer, ::Effekseer::FileInterface* f
 	ES_SAFE_ADDREF(renderer_);
 }
 
-MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
+MaterialLoader ::~MaterialLoader()
+{
+	ES_SAFE_RELEASE(renderer_);
+}
 
 ::Effekseer::MaterialData* MaterialLoader::Load(const EFK_CHAR* path)
 {
@@ -109,7 +113,8 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 									binary->GetPixelShaderSize(shaderTypes[st]),
 									"MaterialStandardRenderer",
 									decl,
-									ARRAYSIZE(decl));
+									ARRAYSIZE(decl),
+									true);
 		}
 		else
 		{
@@ -138,6 +143,9 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 					return DXGI_FORMAT_R32G32B32_FLOAT;
 				if (i == 4)
 					return DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+				assert(0);
+				return DXGI_FORMAT_R32_FLOAT;
 			};
 			if (material.GetCustomData1Count() > 0)
 			{
@@ -167,7 +175,8 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 									binary->GetPixelShaderSize(shaderTypes[st]),
 									"MaterialStandardRenderer",
 									decl,
-									count);
+									count,
+									true);
 		}
 
 		if (shader == nullptr)
@@ -177,10 +186,7 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 		auto pixelUniformSize = parameterGenerator.PixelShaderUniformBufferSize;
 
 		shader->SetVertexConstantBufferSize(vertexUniformSize);
-		shader->SetVertexRegisterCount(vertexUniformSize / (sizeof(float) * 4));
-
 		shader->SetPixelConstantBufferSize(pixelUniformSize);
-		shader->SetPixelRegisterCount(pixelUniformSize / (sizeof(float) * 4));
 
 		materialData->TextureCount = material.GetTextureCount();
 		materialData->UniformCount = material.GetUniformCount();
@@ -206,7 +212,6 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 			{"NORMAL", 2, DXGI_FORMAT_R32G32B32_FLOAT, 0, sizeof(float) * 9, D3D11_INPUT_PER_VERTEX_DATA, 0},
 			{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, sizeof(float) * 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
 			{"NORMAL", 3, DXGI_FORMAT_R8G8B8A8_UNORM, 0, sizeof(float) * 14, D3D11_INPUT_PER_VERTEX_DATA, 0},
-			{"BLENDINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, sizeof(float) * 15, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		};
 
 		// compile
@@ -219,7 +224,8 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 									 binary->GetPixelShaderSize(shaderTypesModel[st]),
 									 "MaterialStandardModelRenderer",
 									 decl,
-									 ARRAYSIZE(decl));
+									 ARRAYSIZE(decl),
+									 true);
 		if (shader == nullptr)
 			return false;
 
@@ -227,10 +233,7 @@ MaterialLoader ::~MaterialLoader() { ES_SAFE_RELEASE(renderer_); }
 		auto pixelUniformSize = parameterGenerator.PixelShaderUniformBufferSize;
 
 		shader->SetVertexConstantBufferSize(vertexUniformSize);
-		shader->SetVertexRegisterCount(vertexUniformSize / (sizeof(float) * 4));
-
 		shader->SetPixelConstantBufferSize(pixelUniformSize);
-		shader->SetPixelRegisterCount(pixelUniformSize / (sizeof(float) * 4));
 
 		if (st == 0)
 		{

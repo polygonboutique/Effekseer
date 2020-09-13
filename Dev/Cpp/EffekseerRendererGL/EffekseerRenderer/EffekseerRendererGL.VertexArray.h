@@ -4,8 +4,8 @@
 //----------------------------------------------------------------------------------
 // Include
 //----------------------------------------------------------------------------------
-#include "EffekseerRendererGL.RendererImplemented.h"
 #include "EffekseerRendererGL.DeviceObject.h"
+#include "EffekseerRendererGL.RendererImplemented.h"
 
 //-----------------------------------------------------------------------------------
 //
@@ -15,15 +15,14 @@ namespace EffekseerRendererGL
 //-----------------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------------
-class VertexArray
-	: public DeviceObject
+class VertexArray : public DeviceObject
 {
 private:
-	GLuint					m_vertexArray;
+	GLuint m_vertexArray;
 
-	Shader*					m_shader;
-	VertexBuffer*			m_vertexBuffer;
-	IndexBuffer*			m_indexBuffer;
+	Shader* m_shader;
+	VertexBuffer* m_vertexBuffer;
+	IndexBuffer* m_indexBuffer;
 
 	VertexArray(RendererImplemented* renderer, Shader* shader, VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer, bool hasRefCount);
 
@@ -33,12 +32,21 @@ public:
 	static VertexArray*
 	Create(RendererImplemented* renderer, Shader* shader, VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer, bool hasRefCount);
 
-	GLuint GetInterface() const { return m_vertexArray; }
+	GLuint GetInterface() const
+	{
+		return m_vertexArray;
+	}
 
-	VertexBuffer* GetVertexBuffer() { return m_vertexBuffer; }
-	IndexBuffer* GetIndexBuffer() { return m_indexBuffer; }
+	VertexBuffer* GetVertexBuffer()
+	{
+		return m_vertexBuffer;
+	}
+	IndexBuffer* GetIndexBuffer()
+	{
+		return m_indexBuffer;
+	}
 
-public:	// デバイス復旧用
+public: // デバイス復旧用
 	virtual void OnLostDevice();
 	virtual void OnResetDevice();
 
@@ -50,7 +58,7 @@ private:
 //-----------------------------------------------------------------------------------
 //
 //-----------------------------------------------------------------------------------
-}
-//-----------------------------------------------------------------------------------
-//
-//-----------------------------------------------------------------------------------
+} // namespace EffekseerRendererGL
+  //-----------------------------------------------------------------------------------
+  //
+  //-----------------------------------------------------------------------------------

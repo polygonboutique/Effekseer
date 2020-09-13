@@ -2,57 +2,70 @@
 #include "../../3rdParty/stb/stb_image_write.h"
 #include <assert.h>
 
-class DistortingCallbackDX9 : public EffekseerRenderer::DistortingCallback
+DistortingCallbackDX9::DistortingCallbackDX9(::EffekseerRendererDX9::Renderer* renderer,
+											 LPDIRECT3DDEVICE9 device,
+											 int texWidth,
+											 int texHeight)
+	: renderer(renderer)
+	, device(device)
+	, texWidth_(texWidth)
+	, texHeight_(texHeight)
 {
-	::EffekseerRendererDX9::Renderer* renderer = nullptr;
-	LPDIRECT3DDEVICE9 device = nullptr;
-	LPDIRECT3DTEXTURE9 texture = nullptr;
+	device->CreateTexture(texWidth, texHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &texture, NULL);
+}
 
-public:
-	DistortingCallbackDX9(::EffekseerRendererDX9::Renderer* renderer, LPDIRECT3DDEVICE9 device, int texWidth, int texHeight)
-		: renderer(renderer), device(device)
-	{
-		device->CreateTexture(texWidth, texHeight, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &texture, NULL);
-	}
+DistortingCallbackDX9::~DistortingCallbackDX9()
+{
+	ES_SAFE_RELEASE(texture);
+}
 
-	virtual ~DistortingCallbackDX9() { ES_SAFE_RELEASE(texture); }
+bool DistortingCallbackDX9::OnDistorting()
+{
+	IDirect3DSurface9* targetSurface = nullptr;
+	IDirect3DSurface9* texSurface = nullptr;
+	HRESULT hr = S_OK;
 
-	virtual bool OnDistorting() override
-	{
-		IDirect3DSurface9* targetSurface = nullptr;
-		IDirect3DSurface9* texSurface = nullptr;
-		HRESULT hr = S_OK;
+	hr = texture->GetSurfaceLevel(0, &texSurface);
+	assert(SUCCEEDED(hr));
 
-		hr = texture->GetSurfaceLevel(0, &texSurface);
-		assert(SUCCEEDED(hr));
+	hr = device->GetRenderTarget(0, &targetSurface);
+	assert(SUCCEEDED(hr));
 
-		hr = device->GetRenderTarget(0, &targetSurface);
-		assert(SUCCEEDED(hr));
+	hr = device->StretchRect(targetSurface, NULL, texSurface, NULL, D3DTEXF_NONE);
+	assert(SUCCEEDED(hr));
 
-		hr = device->StretchRect(targetSurface, NULL, texSurface, NULL, D3DTEXF_NONE);
-		assert(SUCCEEDED(hr));
+	ES_SAFE_RELEASE(texSurface);
+	ES_SAFE_RELEASE(targetSurface);
 
-		ES_SAFE_RELEASE(texSurface);
-		ES_SAFE_RELEASE(targetSurface);
+	renderer->SetBackground(texture);
 
-		renderer->SetBackground(texture);
+	return true;
+}
 
-		return true;
-	}
-};
+void DistortingCallbackDX9::Lost()
+{
+	ES_SAFE_RELEASE(texture);
+}
+
+void DistortingCallbackDX9::Reset()
+{
+	device->CreateTexture(texWidth_, texHeight_, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &texture, NULL);
+}
 
 void EffectPlatformDX9::CreateCheckedSurface()
 {
-	device_->CreateOffscreenPlainSurface(1280, 720, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, &checkedSurface_, nullptr);
+	device_->CreateOffscreenPlainSurface(WindowWidth, WindowHeight, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, &checkedSurface_, nullptr);
 	D3DLOCKED_RECT lockedRect;
 	checkedSurface_->LockRect(&lockedRect, nullptr, 0);
 	memcpy(lockedRect.pBits, checkeredPattern_.data(), checkeredPattern_.size() * sizeof(uint32_t));
 	checkedSurface_->UnlockRect();
 }
 
-EffekseerRenderer::Renderer* EffectPlatformDX9::CreateRenderer() { 
-	auto ret = EffekseerRendererDX9::Renderer::Create(device_, 2000); 
-	ret->SetDistortingCallback(new DistortingCallbackDX9((EffekseerRendererDX9::Renderer*)ret, device_, 1280, 720));
+EffekseerRenderer::Renderer* EffectPlatformDX9::CreateRenderer()
+{
+	auto ret = EffekseerRendererDX9::Renderer::Create(device_, 2000);
+	distorting_ = new DistortingCallbackDX9((EffekseerRendererDX9::Renderer*)ret, device_, WindowWidth, WindowHeight);
+	ret->SetDistortingCallback(distorting_);
 	return ret;
 }
 
@@ -69,8 +82,8 @@ void EffectPlatformDX9::InitializeDevice(const EffectPlatformInitializingParamet
 
 	D3DPRESENT_PARAMETERS d3dp;
 	ZeroMemory(&d3dp, sizeof(d3dp));
-	d3dp.BackBufferWidth = 1280;
-	d3dp.BackBufferHeight = 720;
+	d3dp.BackBufferWidth = WindowWidth;
+	d3dp.BackBufferHeight = WindowHeight;
 	d3dp.BackBufferFormat = D3DFMT_X8R8G8B8;
 	d3dp.BackBufferCount = 1;
 	d3dp.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -115,7 +128,10 @@ void EffectPlatformDX9::BeginRendering()
 	device_->BeginScene();
 }
 
-void EffectPlatformDX9::EndRendering() { device_->EndScene(); }
+void EffectPlatformDX9::EndRendering()
+{
+	device_->EndScene();
+}
 
 void EffectPlatformDX9::Present()
 {
@@ -151,7 +167,7 @@ bool EffectPlatformDX9::TakeScreenshot(const char* path)
 {
 
 	IDirect3DSurface9* surface = nullptr;
-	device_->CreateOffscreenPlainSurface(1280, 720, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, &surface, nullptr);
+	device_->CreateOffscreenPlainSurface(WindowWidth, WindowHeight, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, &surface, nullptr);
 
 	LPDIRECT3DSURFACE9 backBuf;
 	device_->GetRenderTarget(0, &backBuf);
@@ -162,24 +178,24 @@ bool EffectPlatformDX9::TakeScreenshot(const char* path)
 	D3DLOCKED_RECT locked;
 	RECT rect;
 	rect.left = 0;
-	rect.bottom = 720;
+	rect.bottom = WindowHeight;
 	rect.top = 0;
-	rect.right = 1280;
+	rect.right = WindowWidth;
 	surface->LockRect(&locked, &rect, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY);
 
 	std::vector<uint8_t> data;
 
-	data.resize(1280 * 720 * 4);
+	data.resize(WindowWidth * WindowHeight * 4);
 
-	for (int32_t h = 0; h < 720; h++)
+	for (int32_t h = 0; h < WindowHeight; h++)
 	{
-		auto dst_ = &(data[h * 1280 * 4]);
+		auto dst_ = &(data[h * WindowWidth * 4]);
 		auto src_ = &(((uint8_t*)locked.pBits)[h * locked.Pitch]);
-		memcpy(dst_, src_, 1280 * 4);
+		memcpy(dst_, src_, WindowWidth * 4);
 	}
 
 	// HACK for Geforce
-	for (int32_t i = 0; i < 1280 * 720; i++)
+	for (int32_t i = 0; i < WindowWidth * WindowHeight; i++)
 	{
 		data[i * 4 + 3] = 255;
 		std::swap(data[i * 4 + 0], data[i * 4 + 2]);
@@ -188,7 +204,7 @@ bool EffectPlatformDX9::TakeScreenshot(const char* path)
 	surface->UnlockRect();
 	surface->Release();
 
-	stbi_write_png(path, 1280, 720, 4, data.data(), 1280 * 4);
+	stbi_write_png(path, WindowWidth, WindowHeight, 4, data.data(), WindowWidth * 4);
 
 	return true;
 }
@@ -204,6 +220,8 @@ void EffectPlatformDX9::ResetDevice()
 {
 	ES_SAFE_RELEASE(checkedSurface_);
 
+	distorting_->Lost();
+
 	auto renderer = static_cast<EffekseerRendererDX9::Renderer*>(GetRenderer());
 
 	for (size_t i = 0; i < effects_.size(); i++)
@@ -217,8 +235,8 @@ void EffectPlatformDX9::ResetDevice()
 
 	D3DPRESENT_PARAMETERS d3dp;
 	ZeroMemory(&d3dp, sizeof(d3dp));
-	d3dp.BackBufferWidth = 1280;
-	d3dp.BackBufferHeight = 720;
+	d3dp.BackBufferWidth = WindowWidth;
+	d3dp.BackBufferHeight = WindowHeight;
 	d3dp.BackBufferFormat = D3DFMT_X8R8G8B8;
 	d3dp.BackBufferCount = 1;
 	d3dp.SwapEffect = D3DSWAPEFFECT_DISCARD;
@@ -238,6 +256,8 @@ void EffectPlatformDX9::ResetDevice()
 		throw "Failed : ResetDevice";
 		return;
 	}
+
+	distorting_->Reset();
 
 	renderer->OnResetDevice();
 

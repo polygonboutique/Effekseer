@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -33,12 +33,17 @@ namespace Effekseer
 		{
 			// HACK code for mac
 			// To load libMonoPosix at first
+			try
 			{
 				var dummy = Effekseer.Utils.Zlib.Decompress(new byte[] { 1, 2, 3, 4 });
 			}
+			catch(Exception e)
+			{
+				ExportError(e);
+				return;
+			}
 
 #if DEBUG
-			var test = new Effekseer.InternalScript.Tests();
 			Effekseer.IO.ChunkTest.Test();
 #endif
 
@@ -49,9 +54,7 @@ namespace Effekseer
 			}
 			catch(Exception e)
 			{
-				DateTime dt = DateTime.Now;
-				var filename = string.Format("error_{0:D4}_{1:D2}_{2:D2}_{3:D2}_{4:D2}_{5:D2}.txt", dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second);
-				System.IO.File.WriteAllText(filename, e.ToString());
+				ExportError(e);
 				return;
 			}
 
@@ -126,10 +129,7 @@ namespace Effekseer
 				}
 				catch (Exception e)
 				{
-					DateTime dt = DateTime.Now;
-					var filename = string.Format("error_{0:D4}_{1:D2}_{2:D2}_{3:D2}_{4:D2}_{5:D2}.txt", dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second);
-					var filepath = Path.Combine(EntryDirectory, filename);
-					System.IO.File.WriteAllText(filepath, e.ToString());
+					ExportError(e);
 				}
 			}
 		}
@@ -147,7 +147,8 @@ namespace Effekseer
 #endif
 			if(System.IO.File.Exists(Path.Combine(EntryDirectory, "debug.txt")) || isDebugMode)
 			{
-				swig.Native.SetFileLogger(Path.Combine(GUI.Manager.GetEntryDirectory(),"Effekseer.log.txt"));	
+				swig.Native.SetFileLogger(Path.Combine(GUI.Manager.GetEntryDirectory(),"Effekseer.log.txt"));
+				Utils.Logger.LogPath = Path.Combine(GUI.Manager.GetEntryDirectory(), "Effekseer.Managed.log.txt");
 			}
 
 			LanguageTable.LoadTable(Path.Combine(EntryDirectory, "resources/languages/languages.txt"));
@@ -182,6 +183,16 @@ namespace Effekseer
 				// Failed to compile script
 				if (Core.ExportScripts.Count == 0)
 				{
+					Script.ExportScript efkpkgExporter = new Script.ExportScript(
+						Script.ScriptPosition.External,
+						Plugin.ExportEfkPkg.UniqueName,
+						Plugin.ExportEfkPkg.Author,
+						Plugin.ExportEfkPkg.Title,
+						Plugin.ExportEfkPkg.Description,
+						Plugin.ExportEfkPkg.Filter,
+						Plugin.ExportEfkPkg.Call);
+					Core.ExportScripts.Add(efkpkgExporter);
+
 					Script.ExportScript defaultExporter = new Script.ExportScript(
 						Script.ScriptPosition.External,
 						Plugin.ExportDefault.UniqueName,
@@ -217,7 +228,7 @@ namespace Effekseer
 
 
 				System.OperatingSystem os = System.Environment.OSVersion;
-				swig.DeviceType deviceType = swig.DeviceType.DirectX11;
+				swig.DeviceType deviceType = swig.DeviceType.OpenGL;
 
 				if (!(os.Platform == PlatformID.Win32NT ||
 				os.Platform == PlatformID.Win32S ||
@@ -270,7 +281,7 @@ namespace Effekseer
 					else
 					{
 						var binaryExporter = new Binary.Exporter();
-						var binary = binaryExporter.Export(magnification);
+						var binary = binaryExporter.Export(Core.Root, magnification);
 						System.IO.File.WriteAllBytes(export, binary);
 					}
 				}
@@ -307,12 +318,65 @@ namespace Effekseer
 			MultiLanguageTextProvider.LoadCSV("Effekseer_Scale.csv");
 			MultiLanguageTextProvider.LoadCSV("Effekseer_BasicRenderSettings.csv");
 			MultiLanguageTextProvider.LoadCSV("Effekseer_RenderSettings.csv");
+			MultiLanguageTextProvider.LoadCSV("Effekseer_LocalForceField.csv");
+			MultiLanguageTextProvider.LoadCSV("Effekseer_AdvancedRenderCommon.csv");
+
 			GUI.Manager.UpdateFont();
 		}
 
 		static void Core_OnOutputMessage(string obj)
 		{
 			swig.GUIManager.show(obj, "Error", swig.DialogStyle.Error, swig.DialogButtons.OK);
+		}
+
+		static void ExportError(Exception e)
+		{
+			string messageBase = "Error has been caused.";
+
+			if (e is UnauthorizedAccessException)
+			{
+				if (Core.Language == Language.Japanese)
+				{
+					messageBase = "アクセスが拒否されエラーが発生しました。\n他のディレクトリにインストールしてください。\nもしくはアクセスできないファイルを選択しています。\n";
+				}
+				else
+				{
+					messageBase = "Access is denied and an error occurred. \nPlease install it in another directory. \nOr you have selected a file that you cannot access.\n";
+				}
+			}
+			else
+			{
+				if (Core.Language == Language.Japanese)
+				{
+					messageBase = "エラーが発生しました。";
+				}
+			}
+
+			DateTime dt = DateTime.Now;
+			var filename = string.Format("error_{0:D4}_{1:D2}_{2:D2}_{3:D2}_{4:D2}_{5:D2}.txt", dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second);
+			var filepath = Path.Combine(EntryDirectory, filename);
+
+			try
+			{
+				System.IO.File.WriteAllText(filepath, e.ToString());
+
+				string message = messageBase + "Error log is written in " + filepath + "\nWe are glad if you send this error to Effekseer with a mail or twitter.\n";
+
+				if (Core.Language == Language.Japanese)
+				{
+					message = messageBase + "エラーログが" + filepath + "に出力されました。\nもしエラーをメールやTwitterでEffekseerに送っていただけると助かります。\n";
+				}
+				swig.GUIManager.show(message, "Error", swig.DialogStyle.Error, swig.DialogButtons.OK);
+			}
+			catch (Exception e2)
+			{
+				string message = messageBase;
+
+				message += e.ToString();
+				message += "\n";
+				message += e2.ToString();
+				swig.GUIManager.show(message, "Error", swig.DialogStyle.Error, swig.DialogButtons.OK);
+			}
 		}
 	}
 
@@ -386,6 +450,11 @@ namespace Effekseer
 
 			Icons["FileViewer_Directory"] = LoadAppResource(native, "resources/icons/FileViewer_Directory.png");
 			Icons["FileViewer_EffekseerProj"] = LoadAppResource(native, "resources/icons/FileViewer_EffekseerProj.png");
+
+			Icons["ButtonMin"] = LoadAppResource(native, "resources/icons/Button_Min.png");
+			Icons["ButtonMax"] = LoadAppResource(native, "resources/icons/Button_Max.png");
+			Icons["ButtonMaxCancel"] = LoadAppResource(native, "resources/icons/Button_MaxCancel.png");
+			Icons["ButtonClose"] = LoadAppResource(native, "resources/icons/Button_Close.png");
 		}
 
 		public static void Unload()

@@ -4,9 +4,13 @@
 
 typedef Effekseer::MaterialCompiler*(EFK_STDCALL* CreateCompilerFunc)();
 
-CompiledMaterialGenerator::CompiledMaterialGenerator() {}
+CompiledMaterialGenerator::CompiledMaterialGenerator()
+{
+}
 
-CompiledMaterialGenerator::~CompiledMaterialGenerator() {}
+CompiledMaterialGenerator::~CompiledMaterialGenerator()
+{
+}
 
 bool CompiledMaterialGenerator::Initialize(const char* directory)
 {
@@ -107,7 +111,11 @@ bool CompiledMaterialGenerator::Compile(const char* dstPath, const char* srcPath
 			continue;
 		}
 
+#if defined(_WIN32) && !defined(_WIN64) 
+		auto createCompiler = dll.second->GetProc<CreateCompilerFunc>("_CreateCompiler@0");
+#else
 		auto createCompiler = dll.second->GetProc<CreateCompilerFunc>("CreateCompiler");
+#endif
 		auto compiler = createCompiler();
 
 		std::vector<uint8_t> vsStandardBinary;
@@ -150,7 +158,6 @@ bool CompiledMaterialGenerator::Compile(const char* dstPath, const char* srcPath
 						  vsRefractionModelBinary,
 						  psRefractionModelBinary,
 						  dll.first);
-		
 		}
 
 		compiler->Release();

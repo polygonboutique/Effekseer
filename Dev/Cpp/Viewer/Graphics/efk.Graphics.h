@@ -7,101 +7,168 @@
 #include <vector>
 
 #include "../../EffekseerRendererCommon/EffekseerRenderer.Renderer.h"
+#include "../Math/Vector2DI.h"
 #include "../efk.Base.h"
+
+namespace Effekseer
+{
+namespace Tool
+{
+
+class RenderPass;
+class CommandList;
+
+} // namespace Tool
+} // namespace Effekseer
 
 namespace efk
 {
-	class Graphics;
+class Graphics;
 
-	enum class TextureFormat {
-		RGBA8U,
-		RGBA16F,
-		R16F,
-	};
+enum class TextureFormat
+{
+	RGBA8U,
+	RGBA16F,
+	R16F,
+};
 
-	class RenderTexture
+enum class TextureFeatureType
+{
+	Texture2D,
+	MultisampledTexture2DRenderTarget,
+	MultisampledTexture2DResolve,
+};
+
+class RenderTexture
+{
+protected:
+	int32_t samplingCount_ = 1;
+	Effekseer::Tool::Vector2DI size_;
+	TextureFormat format_;
+
+public:
+	RenderTexture() = default;
+	virtual ~RenderTexture() = default;
+
+	virtual bool Initialize(Effekseer::Tool::Vector2DI size, TextureFormat format, uint32_t multisample = 1) = 0;
+
+	virtual uint64_t GetViewID() = 0;
+
+	Effekseer::Tool::Vector2DI GetSize() const
 	{
-	public:
-		RenderTexture() = default;
-		virtual ~RenderTexture() = default;
+		return size_;
+	}
 
-		virtual bool Initialize(int32_t width, int32_t height, TextureFormat format, uint32_t multisample = 1) = 0;
-
-		virtual int32_t GetWidth() = 0;
-		virtual int32_t GetHeight() = 0;
-
-		virtual uint64_t GetViewID() = 0;
-
-		static RenderTexture* Create(Graphics* graphics);
-	};
-
-	class DepthTexture
+	int32_t GetSamplingCount() const
 	{
-	public:
-		DepthTexture() = default;
-		virtual ~DepthTexture() = default;
+		return samplingCount_;
+	}
 
-		virtual bool Initialize(int32_t width, int32_t height, uint32_t multisample = 1) = 0;
-
-		static DepthTexture* Create(Graphics* graphics);
-	};
-
-	class Graphics
+	TextureFormat GetFormat() const
 	{
-	protected:
-		RenderTexture* currentRenderTexture = nullptr;
-		DepthTexture* currentDepthTexture = nullptr;
+		return format_;
+	}
 
-	public:
-		Graphics() {}
-		virtual ~Graphics() {}
+	static RenderTexture* Create(Graphics* graphics);
+};
 
-		virtual bool Initialize(void* windowHandle, int32_t windowWidth, int32_t windowHeight, bool isSRGBMode, int32_t spriteCount) = 0;
+class DepthTexture
+{
+public:
+	DepthTexture() = default;
+	virtual ~DepthTexture() = default;
 
-		virtual void CopyToBackground() = 0;
+	virtual bool Initialize(int32_t width, int32_t height, uint32_t multisample = 1) = 0;
 
-		virtual void Resize(int32_t width, int32_t height) = 0;
+	static DepthTexture* Create(Graphics* graphics);
+};
 
-		virtual bool Present() = 0;
+class Graphics
+{
+protected:
+	RenderTexture* currentRenderTexture = nullptr;
+	DepthTexture* currentDepthTexture = nullptr;
 
-		virtual void BeginScene() = 0;
+public:
+	Graphics()
+	{
+	}
+	virtual ~Graphics()
+	{
+	}
 
-		virtual void EndScene() = 0;
+	virtual bool Initialize(void* windowHandle, int32_t windowWidth, int32_t windowHeight, bool isSRGBMode) = 0;
 
-		virtual void SetRenderTarget(RenderTexture* renderTexture, DepthTexture* depthTexture) = 0;
+	virtual void CopyTo(RenderTexture* src, RenderTexture* dst) = 0;
 
-		virtual void BeginRecord(int32_t width, int32_t height) = 0;
+	//virtual void CopyToBackground() = 0;
 
-		virtual void EndRecord(std::vector<Effekseer::Color>& pixels) = 0;
+	virtual void Resize(int32_t width, int32_t height) = 0;
 
-		virtual void Clear(Effekseer::Color color) = 0;
+	virtual bool Present() = 0;
 
-		virtual void ResetDevice() = 0;
+	virtual void BeginScene() = 0;
 
-		virtual void* GetBack() = 0;
+	virtual void EndScene() = 0;
 
-		virtual EffekseerRenderer::Renderer* GetRenderer() = 0;
+	virtual void SetRenderTarget(RenderTexture* renderTexture, DepthTexture* depthTexture) = 0;
 
-		virtual DeviceType GetDeviceType() const = 0;
+	virtual void SaveTexture(RenderTexture* texture, std::vector<Effekseer::Color>& pixels) = 0;
 
-		virtual RenderTexture* GetRenderTexture() const { return currentRenderTexture; }
-		virtual DepthTexture* GetDepthTexture() const { return currentDepthTexture; }
+	virtual void Clear(Effekseer::Color color) = 0;
 
-		virtual void ResolveRenderTarget(RenderTexture* src, RenderTexture* dest) {}
+	virtual void ResetDevice() = 0;
 
-		/**
-		Called when device is losted.
-		*/
-		std::function<void()>	LostedDevice;
+	//virtual void* GetBack() = 0;
 
-		/**
-		Called when device is resetted.
-		*/
-		std::function<void()>	ResettedDevice;
+	virtual DeviceType GetDeviceType() const = 0;
 
-		/**
-		Called when device is presented.
-		*/
-		std::function<void()>	Presented;
-	};
-}
+	virtual RenderTexture* GetRenderTexture() const
+	{
+		return currentRenderTexture;
+	}
+	virtual DepthTexture* GetDepthTexture() const
+	{
+		return currentDepthTexture;
+	}
+
+	virtual void ResolveRenderTarget(RenderTexture* src, RenderTexture* dest)
+	{
+	}
+
+	virtual bool CheckFormatSupport(TextureFormat format, TextureFeatureType feature)
+	{
+		return true;
+	}
+
+	virtual int GetMultisampleLevel(TextureFormat format)
+	{
+		return 4;
+	}
+
+	virtual std::shared_ptr<Effekseer::Tool::RenderPass> CreateRenderPass(std::shared_ptr<efk::RenderTexture> colorTexture, std::shared_ptr<efk::DepthTexture> depthTexture)
+	{
+		return nullptr;
+	}
+
+	virtual std::shared_ptr<Effekseer::Tool::CommandList> CreateCommandList()
+	{
+		return nullptr;
+	}
+
+	/**
+	Called when device is losted.
+	*/
+	//std::function<void()> LostedDevice;
+
+	/**
+	Called when device is resetted.
+	*/
+	//std::function<void()> ResettedDevice;
+
+	/**
+	Called when device is presented.
+	*/
+	std::function<void()> Presented;
+};
+} // namespace efk

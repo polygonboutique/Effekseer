@@ -11,7 +11,12 @@ file(GLOB effekseer_h
     Effekseer/Parameter/*.h
     Effekseer/IO/*.h
     Effekseer/Utils/*.h
-    Effekseer/Noise/*.h)
+    Effekseer/Noise/*.h
+    Effekseer/ForceField/*.h
+    Effekseer/Backend/*.h
+    Effekseer/Model/ProcedualModelGenerator.h
+    Effekseer/Model/ProcedualModelParameter.h
+)
 
 set(effekseer_src
     Effekseer/Effekseer.Client.cpp
@@ -36,12 +41,14 @@ set(effekseer_src
     Effekseer/Effekseer.Manager.cpp
     Effekseer/Effekseer.Matrix43.cpp
     Effekseer/Effekseer.Matrix44.cpp
+    Effekseer/Effekseer.Random.cpp
     Effekseer/Effekseer.RectF.cpp
     Effekseer/Effekseer.Setting.cpp
     Effekseer/Effekseer.Server.cpp
     Effekseer/Effekseer.Socket.cpp
     Effekseer/Effekseer.Vector2D.cpp
     Effekseer/Effekseer.Vector3D.cpp
+    Effekseer/Effekseer.WorkerThread.cpp
     Effekseer/Culling/Culling3D.Grid.cpp
     Effekseer/Culling/Culling3D.Layer.cpp
     Effekseer/Culling/Culling3D.Matrix44.cpp
@@ -60,6 +67,8 @@ set(effekseer_src
     Effekseer/SIMD/Effekseer.SIMDUtils.cpp
     Effekseer/Noise/CurlNoise.cpp
     Effekseer/Noise/PerlinNoise.cpp
+    Effekseer/ForceField/ForceFields.cpp
+    Effekseer/Model/ProcedualModelGenerator.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC
@@ -71,6 +80,10 @@ set(files
     ${effekseer_src})
 
 FilterFolder("${files}")
+if(CLANG_FORMAT_ENABLED)
+    clang_format(Effekseer)
+endif()
+
 
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /we4456 /we4458)

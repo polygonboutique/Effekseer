@@ -4,13 +4,13 @@
 //----------------------------------------------------------------------------------
 // Include
 //----------------------------------------------------------------------------------
-#include <memory>
-#include "EffekseerRendererGL.RendererImplemented.h"
 #include "EffekseerRendererGL.TextureLoader.h"
-#include "EffekseerRendererGL.GLExtension.h"
 #include "../../EffekseerRendererCommon/EffekseerRenderer.CommonUtils.h"
-#include "../../EffekseerRendererCommon/EffekseerRenderer.PngTextureLoader.h"
 #include "../../EffekseerRendererCommon/EffekseerRenderer.DDSTextureLoader.h"
+#include "../../EffekseerRendererCommon/EffekseerRenderer.PngTextureLoader.h"
+#include "EffekseerRendererGL.GLExtension.h"
+#include "EffekseerRendererGL.RendererImplemented.h"
+#include <memory>
 
 //-----------------------------------------------------------------------------------
 //
@@ -21,9 +21,10 @@ namespace EffekseerRendererGL
 //
 //----------------------------------------------------------------------------------
 TextureLoader::TextureLoader(::Effekseer::FileInterface* fileInterface, ::Effekseer::ColorSpaceType colorSpaceType)
-	: m_fileInterface	( fileInterface ), colorSpaceType_(colorSpaceType)
+	: m_fileInterface(fileInterface)
+	, colorSpaceType_(colorSpaceType)
 {
-	if( m_fileInterface == NULL )
+	if (m_fileInterface == NULL)
 	{
 		m_fileInterface = &m_defaultFileInterface;
 	}
@@ -48,10 +49,9 @@ TextureLoader::~TextureLoader()
 //----------------------------------------------------------------------------------
 Effekseer::TextureData* TextureLoader::Load(const EFK_CHAR* path, ::Effekseer::TextureType textureType)
 {
-	std::unique_ptr<Effekseer::FileReader> 
-		reader( m_fileInterface->OpenRead( path ) );
-	
-	if( reader.get() != NULL )
+	std::unique_ptr<Effekseer::FileReader> reader(m_fileInterface->OpenRead(path));
+
+	if (reader.get() != NULL)
 	{
 		size_t size_texture = reader->GetLength();
 		char* data_texture = new char[size_texture];
@@ -189,13 +189,49 @@ Effekseer::TextureData* TextureLoader::Load(const void* data, int32_t size, Effe
 			}
 		}
 	}
+	else
+	{
+		if (tgaTextureLoader_.Load(data_texture, size_texture))
+		{
+			GLuint colorFormat = GL_RGBA;
+			if (colorSpaceType_ == ::Effekseer::ColorSpaceType::Linear && textureType == Effekseer::TextureType::Color)
+				colorFormat = GL_SRGB8_ALPHA8;
+
+			GLuint texture = 0;
+			glGenTextures(1, &texture);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexImage2D(GL_TEXTURE_2D,
+						 0,
+						 colorFormat,
+						 tgaTextureLoader_.GetWidth(),
+						 tgaTextureLoader_.GetHeight(),
+						 0,
+						 GL_RGBA,
+						 GL_UNSIGNED_BYTE,
+						 tgaTextureLoader_.GetData().data());
+
+			// Generate mipmap
+			GLExt::glGenerateMipmap(GL_TEXTURE_2D);
+
+			glBindTexture(GL_TEXTURE_2D, 0);
+			tgaTextureLoader_.Unload();
+
+			auto textureData = new Effekseer::TextureData();
+			textureData->UserPtr = nullptr;
+			textureData->UserID = texture;
+			textureData->TextureFormat = Effekseer::TextureFormatType::ABGR8;
+			textureData->Width = tgaTextureLoader_.GetWidth();
+			textureData->Height = tgaTextureLoader_.GetHeight();
+			return textureData;
+		}
+	}
 
 	return nullptr;
 }
 
-void TextureLoader::Unload(Effekseer::TextureData* data )
+void TextureLoader::Unload(Effekseer::TextureData* data)
 {
-	if( data != NULL )
+	if (data != NULL)
 	{
 		GLuint texture = (GLuint)data->UserID;
 		glDeleteTextures(1, &texture);
@@ -210,7 +246,7 @@ void TextureLoader::Unload(Effekseer::TextureData* data )
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-}
+} // namespace EffekseerRendererGL
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------

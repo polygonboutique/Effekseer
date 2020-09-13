@@ -3,355 +3,51 @@
 // Include
 //----------------------------------------------------------------------------------
 #include "EffekseerRendererGL.Renderer.h"
-#include "EffekseerRendererGL.RendererImplemented.h"
-#include "EffekseerRendererGL.RenderState.h"
 #include "EffekseerRendererGL.DeviceObjectCollection.h"
+#include "EffekseerRendererGL.RenderState.h"
+#include "EffekseerRendererGL.RendererImplemented.h"
 
-#include "EffekseerRendererGL.Shader.h"
-#include "EffekseerRendererGL.VertexBuffer.h"
-#include "EffekseerRendererGL.IndexBuffer.h"
-#include "EffekseerRendererGL.VertexArray.h"
 #include "EffekseerRendererGL.DeviceObject.h"
-//#include "EffekseerRendererGL.SpriteRenderer.h"
-//#include "EffekseerRendererGL.RibbonRenderer.h"
-//#include "EffekseerRendererGL.RingRenderer.h"
-//#include "EffekseerRendererGL.TrackRenderer.h"
-#include "EffekseerRendererGL.ModelRenderer.h"
-#include "EffekseerRendererGL.TextureLoader.h"
-#include "EffekseerRendererGL.ModelLoader.h"
+#include "EffekseerRendererGL.IndexBuffer.h"
 #include "EffekseerRendererGL.MaterialLoader.h"
+#include "EffekseerRendererGL.ModelLoader.h"
+#include "EffekseerRendererGL.ModelRenderer.h"
+#include "EffekseerRendererGL.Shader.h"
+#include "EffekseerRendererGL.TextureLoader.h"
+#include "EffekseerRendererGL.VertexArray.h"
+#include "EffekseerRendererGL.VertexBuffer.h"
 
 #include "EffekseerRendererGL.GLExtension.h"
 
-#include "../../EffekseerRendererCommon/EffekseerRenderer.SpriteRendererBase.h"
+#include "../../EffekseerRendererCommon/EffekseerRenderer.Renderer_Impl.h"
 #include "../../EffekseerRendererCommon/EffekseerRenderer.RibbonRendererBase.h"
 #include "../../EffekseerRendererCommon/EffekseerRenderer.RingRendererBase.h"
+#include "../../EffekseerRendererCommon/EffekseerRenderer.SpriteRendererBase.h"
 #include "../../EffekseerRendererCommon/EffekseerRenderer.TrackRendererBase.h"
-#include "../../EffekseerRendererCommon/EffekseerRenderer.Renderer_Impl.h"
 
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
 #include "../../EffekseerRendererCommon/EffekseerRenderer.PngTextureLoader.h"
 #endif
 
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
+#include "ShaderHeader/standard_renderer_PS.h"
+#include "ShaderHeader/standard_renderer_VS.h"
+#include "ShaderHeader/standard_renderer_distortion_PS.h"
+#include "ShaderHeader/standard_renderer_distortion_VS.h"
+#include "ShaderHeader/standard_renderer_lighting_PS.h"
+#include "ShaderHeader/standard_renderer_lighting_VS.h"
+
+#include "ShaderHeader/sprite_distortion_ps.h"
+#include "ShaderHeader/sprite_distortion_vs.h"
+#include "ShaderHeader/sprite_lit_ps.h"
+#include "ShaderHeader/sprite_lit_vs.h"
+#include "ShaderHeader/sprite_unlit_ps.h"
+#include "ShaderHeader/sprite_unlit_vs.h"
+
 namespace EffekseerRendererGL
 {
 
-//-----------------------------------------------------------------------------------
-//
-//-----------------------------------------------------------------------------------
-static const char g_sprite_vs_src [] =
-R"(
-IN vec4 atPosition;
-IN vec4 atColor;
-IN vec4 atTexCoord;
-)"
-
-R"(
-OUT vec4 vaColor;
-OUT vec4 vaTexCoord;
-OUT vec4 vaPos;
-OUT vec4 vaPosR;
-OUT vec4 vaPosU;
-)"
-
-R"(
-uniform mat4 uMatCamera;
-uniform mat4 uMatProjection;
-uniform vec4 mUVInversed;
-
-void main() {
-	vec4 cameraPos = uMatCamera * atPosition;
-	cameraPos = cameraPos / cameraPos.w;
-
-	gl_Position = uMatProjection * cameraPos;
-
-	vaPos = gl_Position;
-
-	vec4 cameraPosU = cameraPos + vec4(0.0, 1.0, 0.0, 0.0);
-	vec4 cameraPosR = cameraPos + vec4(1.0, 0.0, 0.0, 0.0);
-
-	vaPosR = uMatProjection * cameraPosR;
-	vaPosU = uMatProjection * cameraPosU;
-	
-	vaPos = vaPos / vaPos.w;
-	vaPosR = vaPosR / vaPosR.w;
-	vaPosU = vaPosU / vaPosU.w;
-
-	vaColor = atColor;
-	vaTexCoord = atTexCoord;
-
-	vaTexCoord.y = mUVInversed.x + mUVInversed.y * vaTexCoord.y;
-}
-
-)";
-
-static const char g_sprite_fs_texture_src[] =
-R"(
-IN lowp vec4 vaColor;
-IN mediump vec4 vaTexCoord;
-
-uniform sampler2D uTexture0;
-
-void main()
+::EffekseerRenderer::GraphicsDevice* CreateDevice(OpenGLDeviceType deviceType)
 {
-	FRAGCOLOR = vaColor * TEX2D(uTexture0, vaTexCoord.xy);
-}
-)";
-
-static const char g_sprite_fs_no_texture_src[] =
-R"(
-IN lowp vec4 vaColor;
-IN mediump vec4 vaTexCoord;
-
-void main()
-{
-	FRAGCOLOR = vaColor;
-}
-)";
-
-
-static const char g_sprite_distortion_vs_src [] =
-R"(
-IN vec4 atPosition;
-IN vec4 atColor;
-IN vec4 atTexCoord;
-IN vec4 atBinormal;
-IN vec4 atTangent;
-
-)"
-
-R"(
-OUT vec4 vaColor;
-OUT vec4 vaTexCoord;
-OUT vec4 vaPos;
-OUT vec4 vaPosR;
-OUT vec4 vaPosU;
-)"
-R"(
-uniform mat4 uMatCamera;
-uniform mat4 uMatProjection;
-uniform vec4 mUVInversed;
-
-void main() {
-
-	vec4 localBinormal = vec4( atPosition.x + atBinormal.x, atPosition.y + atBinormal.y, atPosition.z + atBinormal.z, 1.0 );
-	vec4 localTangent = vec4( atPosition.x + atTangent.x, atPosition.y + atTangent.y, atPosition.z + atTangent.z, 1.0 );
-	localBinormal = uMatCamera * localBinormal;
-	localTangent = uMatCamera * localTangent;
-
-	vec4 cameraPos = uMatCamera * atPosition;
-	cameraPos = cameraPos / cameraPos.w;
-
-	localBinormal = localBinormal / localBinormal.w;
-	localTangent = localTangent / localTangent.w;
-
-	localBinormal = cameraPos + normalize(localBinormal - cameraPos);
-	localTangent = cameraPos + normalize(localTangent - cameraPos);
-
-	gl_Position = uMatProjection * cameraPos;
-
-	vaPos = gl_Position;
-
-
-	vaPosR = uMatProjection * localTangent;
-	vaPosU = uMatProjection * localBinormal;
-	
-	vaPos = vaPos / vaPos.w;
-	vaPosR = vaPosR / vaPosR.w;
-	vaPosU = vaPosU / vaPosU.w;
-
-	vaColor = atColor;
-	vaTexCoord = atTexCoord;
-
-	vaTexCoord.y = mUVInversed.x + mUVInversed.y * vaTexCoord.y;
-}
-
-)";
-
-static const char g_sprite_fs_texture_distortion_src [] =
-R"(
-IN lowp vec4 vaColor;
-IN mediump vec4 vaTexCoord;
-IN mediump vec4 vaPos;
-IN mediump vec4 vaPosR;
-IN mediump vec4 vaPosU;
-)"
-
-R"(
-uniform sampler2D uTexture0;
-uniform sampler2D uBackTexture0;
-
-uniform	vec4	g_scale;
-uniform	vec4	mUVInversedBack;
-
-)"
-
-R"(
-void main() {
-	vec4 color = TEX2D(uTexture0, vaTexCoord.xy);
-	color.w = color.w * vaColor.w;
-
-	vec2 pos = vaPos.xy / vaPos.w;
-	vec2 posU = vaPosU.xy / vaPosU.w;
-	vec2 posR = vaPosR.xy / vaPosR.w;
-
-	vec2 uv = pos + (posR - pos) * (color.x * 2.0 - 1.0) * vaColor.x * g_scale.x + (posU - pos) * (color.y * 2.0 - 1.0) * vaColor.y * g_scale.x;
-	uv.x = (uv.x + 1.0) * 0.5;
-	uv.y = (uv.y + 1.0) * 0.5;
-	//uv.y = 1.0 - (uv.y + 1.0) * 0.5;
-
-	uv.y = mUVInversedBack.x + mUVInversedBack.y * uv.y;
-
-	color.xyz = TEX2D(uBackTexture0, uv).xyz;
-	
-	FRAGCOLOR = color;
-}
-)";
-
-static const char g_sprite_fs_no_texture_distortion_src [] =
-R"(
-IN lowp vec4 vaColor;
-IN mediump vec4 vaTexCoord;
-IN mediump vec4 vaPos;
-IN mediump vec4 vaPosR;
-IN mediump vec4 vaPosU;
-)"
-
-R"(
-uniform sampler2D uBackTexture0;
-
-uniform	vec4	g_scale;
-uniform	vec4	mUVInversedBack;
-
-)"
-
-R"(
-void main() {
-	vec4 color = vaColor;
-	color.xyz = vec3(1.0,1.0,1.0);
-
-	vec2 pos = vaPos.xy / vaPos.w;
-	vec2 posU = vaPosU.xy / vaPosU.w;
-	vec2 posR = vaPosR.xy / vaPosR.w;
-
-	vec2 uv = pos + (posR - pos) * (color.x * 2.0 - 1.0) * vaColor.x * g_scale.x + (posU - pos) * (color.y * 2.0 - 1.0) * vaColor.y * g_scale.x;
-	uv.x = (uv.x + 1.0) * 0.5;
-	uv.y = (uv.y + 1.0) * 0.5;
-	//uv.y = 1.0 - (uv.y + 1.0) * 0.5;
-
-	uv.y = mUVInversedBack.x + mUVInversedBack.y * uv.y;
-
-	color.xyz = TEX2D(uBackTexture0, uv).xyz;
-	
-	FRAGCOLOR = color;
-}
-)";
-
-static const char g_sprite_vs_lighting_src[] =
-	R"(
-IN vec4 atPosition;
-IN vec4 atColor;
-IN vec3 atNormal;
-IN vec3 atTangent;
-IN vec2 atTexCoord;
-IN vec2 atTexCoord2;
-)"
-
-	R"(
-OUT lowp vec4 v_VColor;
-OUT mediump vec2 v_UV1;
-OUT mediump vec2 v_UV2;
-OUT mediump vec3 v_WorldP;
-OUT mediump vec3 v_WorldN;
-OUT mediump vec3 v_WorldT;
-OUT mediump vec3 v_WorldB;
-OUT mediump vec2 v_ScreenUV;
-)"
-
-	R"(
-uniform mat4 uMatCamera;
-uniform mat4 uMatProjection;
-uniform vec4 mUVInversed;
-
-)"
-
-	R"(
-void main() {
-	vec3 worldPos = atPosition.xyz;
-
-	// UV
-	vec2 uv1 = atTexCoord.xy;
-	uv1.y = mUVInversed.x + mUVInversed.y * uv1.y;
-	vec2 uv2 = atTexCoord2.xy;
-	uv2.y = mUVInversed.x + mUVInversed.y * uv2.y;
-
-	// NBT
-	vec3 worldNormal = (atNormal - vec3(0.5, 0.5, 0.5)) * 2.0;
-	vec3 worldTangent = (atTangent - vec3(0.5, 0.5, 0.5)) * 2.0;
-	vec3 worldBinormal = cross(worldNormal, worldTangent);
-
-	v_WorldN = worldNormal;
-	v_WorldB = worldBinormal;
-	v_WorldT = worldTangent;
-	vec3 pixelNormalDir = vec3(0.5, 0.5, 1.0);
-
-	vec4 cameraPos = uMatCamera * vec4(worldPos, 1.0);
-	cameraPos = cameraPos / cameraPos.w;
-
-	gl_Position = uMatProjection * cameraPos;
-
-	v_WorldP = worldPos;
-	v_VColor = atColor;
-
-	v_UV1 = uv1;
-	v_UV2 = uv2;
-	v_ScreenUV.xy = gl_Position.xy / gl_Position.w;
-	v_ScreenUV.xy = vec2(v_ScreenUV.x + 1.0, v_ScreenUV.y + 1.0) * 0.5;
-}
-
-)";
-
-static const char g_sprite_fs_lighting_src[] =
-	R"(
-
-IN lowp vec4 v_VColor;
-IN mediump vec2 v_UV1;
-IN mediump vec2 v_UV2;
-IN mediump vec3 v_WorldP;
-IN mediump vec3 v_WorldN;
-IN mediump vec3 v_WorldT;
-IN mediump vec3 v_WorldB;
-IN mediump vec2 v_ScreenUV;
-
-uniform sampler2D ColorTexture;
-uniform sampler2D NormalTexture;
-uniform vec4 LightDirection;
-uniform vec4 LightColor;
-uniform vec4 LightAmbient;
-
-void main()
-{
-	vec3 texNormal = (TEX2D(NormalTexture, v_UV1.xy).xyz - 0.5) * 2.0;
-	mat3 normalMatrix = mat3(v_WorldT.xyz, v_WorldB.xyz, v_WorldN.xyz );
-	vec3 localNormal = normalize( normalMatrix * texNormal );
-	float diffuse = max(0.0, dot(localNormal, LightDirection.xyz));
-	
-	FRAGCOLOR = v_VColor * TEX2D(ColorTexture, v_UV1.xy);
-	FRAGCOLOR.xyz = FRAGCOLOR.xyz * (LightColor.xyz * diffuse + LightAmbient.xyz);
-}
-
-
-)";
-
-//-----------------------------------------------------------------------------------
-//
-//-----------------------------------------------------------------------------------
-
-::EffekseerRenderer::GraphicsDevice* CreateDevice(OpenGLDeviceType deviceType) 
-{ 
 	return new GraphicsDevice(deviceType);
 }
 
@@ -364,10 +60,10 @@ void main()
 #endif
 }
 
-::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface)
+::Effekseer::ModelLoader* CreateModelLoader(::Effekseer::FileInterface* fileInterface, OpenGLDeviceType deviceType)
 {
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
-	return new ModelLoader(fileInterface);
+	return new ModelLoader(fileInterface, deviceType);
 #else
 	return NULL;
 #endif
@@ -395,7 +91,7 @@ Renderer* Renderer::Create(int32_t squareMaxCount, OpenGLDeviceType deviceType)
 	return NULL;
 }
 
-Renderer* Create(int32_t squareMaxCount, ::EffekseerRenderer::GraphicsDevice* graphicDevice)
+Renderer* Renderer::Create(int32_t squareMaxCount, ::EffekseerRenderer::GraphicsDevice* graphicDevice)
 {
 	auto g = static_cast<GraphicsDevice*>(graphicDevice);
 
@@ -412,28 +108,27 @@ Renderer* Create(int32_t squareMaxCount, ::EffekseerRenderer::GraphicsDevice* gr
 int32_t RendererImplemented::GetIndexSpriteCount() const
 {
 	int vsSize = EffekseerRenderer::GetMaximumVertexSizeInAllTypes() * m_squareMaxCount * 4;
-	return (vsSize / sizeof(Vertex) / 4 + 1);
+
+	size_t size = sizeof(EffekseerRenderer::SimpleVertex);
+	size = (std::min)(size, sizeof(VertexDistortion));
+	size = (std::min)(size, sizeof(EffekseerRenderer::DynamicVertex));
+	size = (std::min)(size, sizeof(EffekseerRenderer::LightingVertex));
+
+	return (vsSize / size / 4 + 1);
 }
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-RendererImplemented::RendererImplemented(int32_t squareMaxCount,
-										 OpenGLDeviceType deviceType, GraphicsDevice* graphicsDevice)
-	: m_vertexBuffer( NULL )
-	, m_indexBuffer	( NULL )
-	, m_indexBufferForWireframe	( NULL )
-	, m_squareMaxCount	( squareMaxCount )
-	, m_renderState		( NULL )
+RendererImplemented::RendererImplemented(int32_t squareMaxCount, OpenGLDeviceType deviceType, GraphicsDevice* graphicsDevice)
+	: m_vertexBuffer(NULL)
+	, m_indexBuffer(NULL)
+	, m_indexBufferForWireframe(NULL)
+	, m_squareMaxCount(squareMaxCount)
+	, m_renderState(NULL)
 	, m_restorationOfStates(true)
-	, m_currentVertexArray( NULL )
-
-	, m_shader(nullptr)
-	, m_shader_distortion(nullptr)
+	, m_currentVertexArray(NULL)
 	, m_standardRenderer(nullptr)
-
-	, m_vao(nullptr)
-	, m_vao_distortion(nullptr)
 	, m_vao_wire_frame(nullptr)
 	, m_distortingCallback(nullptr)
 
@@ -463,16 +158,25 @@ RendererImplemented::~RendererImplemented()
 	ES_SAFE_DELETE(m_distortingCallback);
 
 	ES_SAFE_DELETE(m_standardRenderer);
-	ES_SAFE_DELETE(m_shader);
-	ES_SAFE_DELETE(m_shader_distortion);
-	ES_SAFE_DELETE(m_shader_lighting);
+	ES_SAFE_DELETE(shader_unlit_);
+	ES_SAFE_DELETE(shader_distortion_);
+	ES_SAFE_DELETE(shader_lit_);
 
-	auto isVaoEnabled = m_vao != nullptr;
+	ES_SAFE_DELETE(shader_ad_unlit_);
+	ES_SAFE_DELETE(shader_ad_lit_);
+	ES_SAFE_DELETE(shader_ad_distortion_);
 
-	ES_SAFE_DELETE(m_vao);
-	ES_SAFE_DELETE(m_vao_distortion);
+	auto isVaoEnabled = vao_unlit_ != nullptr;
+
+	ES_SAFE_DELETE(vao_unlit_);
+	ES_SAFE_DELETE(vao_distortion_);
+	ES_SAFE_DELETE(vao_lit_);
+
+	ES_SAFE_DELETE(vao_ad_unlit_);
+	ES_SAFE_DELETE(vao_ad_lit_);
+	ES_SAFE_DELETE(vao_ad_distortion_);
+
 	ES_SAFE_DELETE(m_vao_wire_frame);
-	ES_SAFE_DELETE(m_vao_lighting);
 
 	ES_SAFE_DELETE(m_renderState);
 	ES_SAFE_DELETE(m_vertexBuffer);
@@ -514,7 +218,8 @@ void RendererImplemented::GenerateIndexData()
 	}
 }
 
-template <typename T> void RendererImplemented::GenerateIndexDataStride()
+template <typename T>
+void RendererImplemented::GenerateIndexDataStride()
 {
 	// generate an index buffer
 	if (m_indexBuffer != nullptr)
@@ -583,147 +288,242 @@ bool RendererImplemented::Initialize()
 
 	SetSquareMaxCount(m_squareMaxCount);
 
-	m_renderState = new RenderState( this );
+	m_renderState = new RenderState(this);
 
-	m_shader = Shader::Create(GetGraphicsDevice(),
-		g_sprite_vs_src, sizeof(g_sprite_vs_src), 
-		g_sprite_fs_texture_src, sizeof(g_sprite_fs_texture_src), 
-		"Standard Tex", false);
-	if (m_shader == nullptr) return false;
+	ShaderCodeView unlit_ad_vs(get_standard_renderer_VS(GetDeviceType()));
+	ShaderCodeView unlit_ad_ps(get_standard_renderer_PS(GetDeviceType()));
+	ShaderCodeView distortion_ad_vs(get_standard_renderer_distortion_VS(GetDeviceType()));
+	ShaderCodeView distortion_ad_ps(get_standard_renderer_distortion_PS(GetDeviceType()));
+	ShaderCodeView lit_ad_vs(get_standard_renderer_lighting_VS(GetDeviceType()));
+	ShaderCodeView lit_ad_ps(get_standard_renderer_lighting_PS(GetDeviceType()));
 
-	m_shader_distortion = Shader::Create(GetGraphicsDevice(),
-		g_sprite_distortion_vs_src, sizeof(g_sprite_distortion_vs_src), 
-		g_sprite_fs_texture_distortion_src, sizeof(g_sprite_fs_texture_distortion_src), 
-		"Standard Distortion Tex", false);
-	if (m_shader_distortion == nullptr) return false;
+	ShaderCodeView unlit_vs(get_sprite_unlit_vs(GetDeviceType()));
+	ShaderCodeView unlit_ps(get_sprite_unlit_ps(GetDeviceType()));
+	ShaderCodeView distortion_vs(get_sprite_distortion_vs(GetDeviceType()));
+	ShaderCodeView distortion_ps(get_sprite_distortion_ps(GetDeviceType()));
+	ShaderCodeView lit_vs(get_sprite_lit_vs(GetDeviceType()));
+	ShaderCodeView lit_ps(get_sprite_lit_ps(GetDeviceType()));
+
+	shader_ad_unlit_ = Shader::Create(GetGraphicsDevice(), &unlit_ad_vs, 1, &unlit_ad_ps, 1, "Standard Tex", false, false);
+	if (shader_ad_unlit_ == nullptr)
+		return false;
+
+	shader_ad_distortion_ = Shader::Create(GetGraphicsDevice(), &distortion_ad_vs, 1, &distortion_ad_ps, 1, "Standard Distortion Tex", false, false);
+	if (shader_ad_distortion_ == nullptr)
+		return false;
+
+	shader_ad_lit_ = Shader::Create(GetGraphicsDevice(), &lit_ad_vs, 1, &lit_ad_ps, 1, "Standard Lighting Tex", false, false);
+
+	shader_unlit_ = Shader::Create(GetGraphicsDevice(), &unlit_vs, 1, &unlit_ps, 1, "Standard Tex", false, false);
+	if (shader_unlit_ == nullptr)
+		return false;
+
+	shader_distortion_ = Shader::Create(GetGraphicsDevice(), &distortion_vs, 1, &distortion_ps, 1, "Standard Distortion Tex", false, false);
+	if (shader_distortion_ == nullptr)
+		return false;
+
+	shader_lit_ = Shader::Create(GetGraphicsDevice(), &lit_vs, 1, &lit_ps, 1, "Standard Lighting Tex", false, false);
+
+	auto applyPSAdvancedRendererParameterTexture = [](Shader* shader, int32_t offset) -> void {
+		shader->SetTextureSlot(0 + offset, shader->GetUniformId("Sampler_g_alphaSampler"));
+		shader->SetTextureSlot(1 + offset, shader->GetUniformId("Sampler_g_uvDistortionSampler"));
+		shader->SetTextureSlot(2 + offset, shader->GetUniformId("Sampler_g_blendSampler"));
+		shader->SetTextureSlot(3 + offset, shader->GetUniformId("Sampler_g_blendAlphaSampler"));
+		shader->SetTextureSlot(4 + offset, shader->GetUniformId("Sampler_g_blendUVDistortionSampler"));
+	};
+
+	// Unlit
+
+	static ShaderAttribInfo sprite_attribs_ad[8] = {
+		{"Input_Pos", GL_FLOAT, 3, 0, false},
+		{"Input_Color", GL_UNSIGNED_BYTE, 4, 12, true},
+		{"Input_UV", GL_FLOAT, 2, 16, false},
+
+		{"Input_Alpha_Dist_UV", GL_FLOAT, 4, sizeof(float) * 6, false},
+		{"Input_BlendUV", GL_FLOAT, 2, sizeof(float) * 10, false},
+		{"Input_Blend_Alpha_Dist_UV", GL_FLOAT, 4, sizeof(float) * 12, false},
+		{"Input_FlipbookIndex", GL_FLOAT, 1, sizeof(float) * 16, false},
+		{"Input_AlphaThreshold", GL_FLOAT, 1, sizeof(float) * 17, false},
+	};
+
+	shader_ad_unlit_->GetAttribIdList(8, sprite_attribs_ad);
 
 	static ShaderAttribInfo sprite_attribs[3] = {
-		{ "atPosition", GL_FLOAT, 3, 0, false },
-		{ "atColor", GL_UNSIGNED_BYTE, 4, 12, true },
-		{ "atTexCoord", GL_FLOAT, 2, 16, false }
+		{"Input_Pos", GL_FLOAT, 3, 0, false},
+		{"Input_Color", GL_UNSIGNED_BYTE, 4, 12, true},
+		{"Input_UV", GL_FLOAT, 2, 16, false},
 	};
+	shader_unlit_->GetAttribIdList(3, sprite_attribs);
 
-	static ShaderAttribInfo sprite_attribs_distortion[5] = {
-		{ "atPosition", GL_FLOAT, 3, 0, false },
-		{ "atColor", GL_UNSIGNED_BYTE, 4, 12, true },
-		{ "atTexCoord", GL_FLOAT, 2, 16, false },
-		{ "atBinormal", GL_FLOAT, 3, 24, false },
-		{ "atTangent", GL_FLOAT, 3, 36, false },
-	};
+	for (auto& shader : {shader_ad_unlit_, shader_unlit_})
+	{
+		shader->SetVertexConstantBufferSize(sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4 + sizeof(float) * 4);
+		shader->SetPixelConstantBufferSize(sizeof(float) * 4 * 6);
 
-	// 頂点属性IDを取得
-	m_shader->GetAttribIdList(3, sprite_attribs);
-	m_shader->SetVertexSize(sizeof(Vertex));
-	m_shader->SetVertexConstantBufferSize(sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4);
-	
-	m_shader->AddVertexConstantLayout(
-		CONSTANT_TYPE_MATRIX44,
-		m_shader->GetUniformId("uMatCamera"),
-		0
-		);
+		shader->AddVertexConstantLayout(
+			CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBVS0.mflipbookParameter"), sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4);
 
-	m_shader->AddVertexConstantLayout(
-		CONSTANT_TYPE_MATRIX44,
-		m_shader->GetUniformId("uMatProjection"),
-		sizeof(Effekseer::Matrix44)
-		);
+		{
+			int32_t offset = 0;
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.flipbookParameter"), 0 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.uvDistortionParameter"), sizeof(float) * 4 * 1 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.blendTextureParameter"), sizeof(float) * 4 * 2 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.emissiveScaling"), sizeof(float) * 4 * 3 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.edgeColor"), sizeof(float) * 4 * 4 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.edgeParameter"), sizeof(float) * 4 * 5 + offset);
+		}
 
-	m_shader->AddVertexConstantLayout(
-		CONSTANT_TYPE_VECTOR4,
-		m_shader->GetUniformId("mUVInversed"),
-		sizeof(Effekseer::Matrix44) * 2
-	);
+		applyPSAdvancedRendererParameterTexture(shader, 1);
 
-	m_shader->SetTextureSlot(0, m_shader->GetUniformId("uTexture0"));
+		shader->AddVertexConstantLayout(CONSTANT_TYPE_MATRIX44, shader->GetUniformId("CBVS0.mCamera"), 0);
 
-	m_vao = VertexArray::Create(this, m_shader, GetVertexBuffer(), GetIndexBuffer(), false);
+		shader->AddVertexConstantLayout(CONSTANT_TYPE_MATRIX44, shader->GetUniformId("CBVS0.mProj"), sizeof(Effekseer::Matrix44));
+
+		shader->AddVertexConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBVS0.mUVInversed"), sizeof(Effekseer::Matrix44) * 2);
+
+		shader->SetTextureSlot(0, shader->GetUniformId("Sampler_g_sampler"));
+	}
+
+	vao_unlit_ = VertexArray::Create(this, shader_unlit_, GetVertexBuffer(), GetIndexBuffer(), false);
+	vao_ad_unlit_ = VertexArray::Create(this, shader_ad_unlit_, GetVertexBuffer(), GetIndexBuffer(), false);
 
 	// Distortion
-	m_shader_distortion->GetAttribIdList(5, sprite_attribs_distortion);
-	m_shader_distortion->SetVertexSize(sizeof(VertexDistortion));
-	m_shader_distortion->SetVertexConstantBufferSize(sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4);
-	m_shader_distortion->SetPixelConstantBufferSize(sizeof(float) * 4 + sizeof(float) * 4);
+	static ShaderAttribInfo sprite_attribs_distortion_ad[10] = {
+		{"Input_Pos", GL_FLOAT, 3, 0, false},
+		{"Input_Color", GL_UNSIGNED_BYTE, 4, 12, true},
+		{"Input_UV", GL_FLOAT, 2, 16, false},
+		{"Input_Binormal", GL_FLOAT, 3, 24, false},
+		{"Input_Tangent", GL_FLOAT, 3, 36, false},
 
-	m_shader_distortion->AddVertexConstantLayout(
-		CONSTANT_TYPE_MATRIX44,
-		m_shader_distortion->GetUniformId("uMatCamera"),
-		0
-		);
-
-	m_shader_distortion->AddVertexConstantLayout(
-		CONSTANT_TYPE_MATRIX44,
-		m_shader_distortion->GetUniformId("uMatProjection"),
-		sizeof(Effekseer::Matrix44)
-		);
-
-	m_shader_distortion->AddVertexConstantLayout(
-		CONSTANT_TYPE_VECTOR4,
-		m_shader_distortion->GetUniformId("mUVInversed"),
-		sizeof(Effekseer::Matrix44) * 2
-	);
-
-	m_shader_distortion->AddPixelConstantLayout(
-		CONSTANT_TYPE_VECTOR4,
-		m_shader_distortion->GetUniformId("g_scale"),
-		0
-		);
-
-	m_shader_distortion->AddPixelConstantLayout(
-		CONSTANT_TYPE_VECTOR4,
-		m_shader_distortion->GetUniformId("mUVInversedBack"),
-		sizeof(float) * 4
-	);
-
-
-	m_shader_distortion->SetTextureSlot(0, m_shader_distortion->GetUniformId("uTexture0"));
-	m_shader_distortion->SetTextureSlot(1, m_shader_distortion->GetUniformId("uBackTexture0"));
-
-	m_vao_distortion = VertexArray::Create(this, m_shader_distortion, GetVertexBuffer(), GetIndexBuffer(), false);
-
-	// Lighting
-	EffekseerRendererGL::ShaderAttribInfo sprite_attribs_lighting[6] = {
-		{"atPosition", GL_FLOAT, 3, 0, false},
-		{"atColor", GL_UNSIGNED_BYTE, 4, 12, true},
-		{"atNormal", GL_UNSIGNED_BYTE, 4, 16, true},
-		{"atTangent", GL_UNSIGNED_BYTE, 4, 20, true},
-		{"atTexCoord", GL_FLOAT, 2, 24, false},
-		{"atTexCoord2", GL_FLOAT, 2, 32, false},
+		{"Input_Alpha_Dist_UV", GL_FLOAT, 4, sizeof(float) * 12, false},
+		{"Input_BlendUV", GL_FLOAT, 2, sizeof(float) * 16, false},
+		{"Input_Blend_Alpha_Dist_UV", GL_FLOAT, 4, sizeof(float) * 18, false},
+		{"Input_FlipbookIndex", GL_FLOAT, 1, sizeof(float) * 22, false},
+		{"Input_AlphaThreshold", GL_FLOAT, 1, sizeof(float) * 23, false},
 	};
 
-	m_shader_lighting = Shader::Create(GetGraphicsDevice(),
-									   g_sprite_vs_lighting_src,
-									   sizeof(g_sprite_vs_lighting_src),
-									   g_sprite_fs_lighting_src,
-									   sizeof(g_sprite_fs_lighting_src),
-									   "Standard Lighting Tex",
-									   false);
+	shader_ad_distortion_->GetAttribIdList(10, sprite_attribs_distortion_ad);
 
-	m_shader_lighting->GetAttribIdList(5, sprite_attribs_lighting);
-	m_shader_lighting->SetVertexSize(sizeof(EffekseerRenderer::DynamicVertex));
-	m_shader_lighting->SetVertexConstantBufferSize(sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4);
-	m_shader_lighting->SetPixelConstantBufferSize(sizeof(float) * 4 * 3);
+	static ShaderAttribInfo sprite_attribs_distortion[5] = {
+		{"Input_Pos", GL_FLOAT, 3, 0, false},
+		{"Input_Color", GL_UNSIGNED_BYTE, 4, 12, true},
+		{"Input_UV", GL_FLOAT, 2, 16, false},
+		{"Input_Binormal", GL_FLOAT, 3, 24, false},
+		{"Input_Tangent", GL_FLOAT, 3, 36, false},
+	};
 
-	m_shader_lighting->AddVertexConstantLayout(CONSTANT_TYPE_MATRIX44, m_shader_lighting->GetUniformId("uMatCamera"), 0);
+	shader_distortion_->GetAttribIdList(5, sprite_attribs_distortion);
 
-	m_shader_lighting->AddVertexConstantLayout(
-		CONSTANT_TYPE_MATRIX44, m_shader_lighting->GetUniformId("uMatProjection"), sizeof(Effekseer::Matrix44));
+	for (auto& shader : {shader_ad_distortion_, shader_distortion_})
+	{
+		shader->SetVertexConstantBufferSize(sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4 + sizeof(float) * 4);
+		shader->SetPixelConstantBufferSize(sizeof(float) * 4 * 5);
 
-	m_shader_lighting->AddVertexConstantLayout(
-		CONSTANT_TYPE_VECTOR4, m_shader_lighting->GetUniformId("mUVInversed"), sizeof(Effekseer::Matrix44) * 2);
+		shader->AddVertexConstantLayout(CONSTANT_TYPE_MATRIX44, shader->GetUniformId("CBVS0.mCamera"), 0);
 
-	m_shader_lighting->AddPixelConstantLayout(
-		CONSTANT_TYPE_VECTOR4, m_shader_lighting->GetUniformId("LightDirection"), sizeof(float[4]) * 0);
-	m_shader_lighting->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, m_shader_lighting->GetUniformId("LightColor"), sizeof(float[4]) * 1);
-	m_shader_lighting->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, m_shader_lighting->GetUniformId("LightAmbient"), sizeof(float[4]) * 2);
+		shader->AddVertexConstantLayout(
+			CONSTANT_TYPE_MATRIX44, shader->GetUniformId("CBVS0.mProj"), sizeof(Effekseer::Matrix44));
 
-	m_shader_lighting->SetTextureSlot(0, m_shader_lighting->GetUniformId("ColorTexture"));
-	m_shader_lighting->SetTextureSlot(1, m_shader_lighting->GetUniformId("NormalTexture"));
+		shader->AddVertexConstantLayout(
+			CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBVS0.mUVInversed"), sizeof(Effekseer::Matrix44) * 2);
 
-	m_vao_lighting = VertexArray::Create(this, m_shader_lighting, GetVertexBuffer(), GetIndexBuffer(), false);
+		shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.g_scale"), 0);
 
-	m_vao_wire_frame = VertexArray::Create(this, m_shader, GetVertexBuffer(), m_indexBufferForWireframe, false);
-	
-	m_standardRenderer = new EffekseerRenderer::StandardRenderer<RendererImplemented, Shader, Vertex, VertexDistortion>(this, m_shader, m_shader_distortion);
+		shader->AddPixelConstantLayout(
+			CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.mUVInversedBack"), sizeof(float) * 4);
+
+		shader->SetTextureSlot(0, shader->GetUniformId("Sampler_g_sampler"));
+		shader->SetTextureSlot(1, shader->GetUniformId("Sampler_g_backSampler"));
+
+		shader->AddVertexConstantLayout(CONSTANT_TYPE_VECTOR4,
+										shader->GetUniformId("CBVS0.mflipbookParameter"),
+										sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4);
+
+		{
+			int32_t offset = sizeof(float) * 4 * 2;
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.flipbookParameter"), 0 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.uvDistortionParameter"), sizeof(float) * 4 * 1 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.blendTextureParameter"), sizeof(float) * 4 * 2 + offset);
+		}
+
+		applyPSAdvancedRendererParameterTexture(shader, 2);
+	}
+
+	vao_ad_distortion_ = VertexArray::Create(this, shader_ad_distortion_, GetVertexBuffer(), GetIndexBuffer(), false);
+
+	vao_distortion_ = VertexArray::Create(this, shader_distortion_, GetVertexBuffer(), GetIndexBuffer(), false);
+
+	// Lit
+
+	EffekseerRendererGL::ShaderAttribInfo sprite_attribs_lighting_ad[11] = {
+		{"Input_Pos", GL_FLOAT, 3, 0, false},
+		{"Input_Color", GL_UNSIGNED_BYTE, 4, 12, true},
+		{"Input_Normal", GL_UNSIGNED_BYTE, 4, 16, true},
+		{"Input_Tangent", GL_UNSIGNED_BYTE, 4, 20, true},
+		{"Input_UV1", GL_FLOAT, 2, 24, false},
+		{"Input_UV2", GL_FLOAT, 2, 32, false},
+
+		{"Input_Alpha_Dist_UV", GL_FLOAT, 4, sizeof(float) * 10, false},
+		{"Input_BlendUV", GL_FLOAT, 2, sizeof(float) * 14, false},
+		{"Input_Blend_Alpha_Dist_UV", GL_FLOAT, 4, sizeof(float) * 16, false},
+		{"Input_FlipbookIndex", GL_FLOAT, 1, sizeof(float) * 20, false},
+		{"Input_AlphaThreshold", GL_FLOAT, 1, sizeof(float) * 21, false},
+	};
+
+	shader_ad_lit_->GetAttribIdList(11, sprite_attribs_lighting_ad);
+
+	EffekseerRendererGL::ShaderAttribInfo sprite_attribs_lighting[6] = {
+		{"Input_Pos", GL_FLOAT, 3, 0, false},
+		{"Input_Color", GL_UNSIGNED_BYTE, 4, 12, true},
+		{"Input_Normal", GL_UNSIGNED_BYTE, 4, 16, true},
+		{"Input_Tangent", GL_UNSIGNED_BYTE, 4, 20, true},
+		{"Input_UV1", GL_FLOAT, 2, 24, false},
+		{"Input_UV2", GL_FLOAT, 2, 32, false},
+	};
+
+	shader_lit_->GetAttribIdList(6, sprite_attribs_lighting);
+
+	for (auto shader : {shader_ad_lit_, shader_lit_})
+	{
+		shader->SetVertexConstantBufferSize(sizeof(Effekseer::Matrix44) * 2 + sizeof(float) * 4 + sizeof(float) * 4);
+		shader->SetPixelConstantBufferSize(sizeof(float) * 4 * 9);
+
+		shader->AddVertexConstantLayout(CONSTANT_TYPE_MATRIX44, shader->GetUniformId("CBVS0.mCamera"), 0);
+
+		shader->AddVertexConstantLayout(
+			CONSTANT_TYPE_MATRIX44, shader->GetUniformId("CBVS0.mProj"), sizeof(Effekseer::Matrix44));
+
+		shader->AddVertexConstantLayout(
+			CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBVS0.mUVInversed"), sizeof(Effekseer::Matrix44) * 2);
+
+		shader->AddPixelConstantLayout(
+			CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fLightDirection"), sizeof(float[4]) * 0);
+		shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fLightColor"), sizeof(float[4]) * 1);
+		shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fLightAmbient"), sizeof(float[4]) * 2);
+
+		shader->SetTextureSlot(0, shader->GetUniformId("Sampler_g_colorSampler"));
+		shader->SetTextureSlot(1, shader->GetUniformId("Sampler_g_normalSampler"));
+
+		{
+			int32_t offset = sizeof(float) * 4 * 3;
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fFlipbookParameter"), 0 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fUVDistortionParameter"), sizeof(float) * 4 * 1 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fBlendTextureParameter"), sizeof(float) * 4 * 2 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fEmissiveScaling"), sizeof(float) * 4 * 3 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fEdgeColor"), sizeof(float) * 4 * 4 + offset);
+			shader->AddPixelConstantLayout(CONSTANT_TYPE_VECTOR4, shader->GetUniformId("CBPS0.fEdgeParameter"), sizeof(float) * 4 * 5 + offset);
+		}
+
+		applyPSAdvancedRendererParameterTexture(shader, 2);
+	}
+
+	vao_ad_lit_ = VertexArray::Create(this, shader_ad_lit_, GetVertexBuffer(), GetIndexBuffer(), false);
+	vao_lit_ = VertexArray::Create(this, shader_lit_, GetVertexBuffer(), GetIndexBuffer(), false);
+
+	m_vao_wire_frame = VertexArray::Create(this, shader_unlit_, GetVertexBuffer(), m_indexBufferForWireframe, false);
+
+	m_standardRenderer =
+		new EffekseerRenderer::StandardRenderer<RendererImplemented, Shader>(this);
 
 	GLExt::glBindBuffer(GL_ARRAY_BUFFER, arrayBufferBinding);
 	GLExt::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferBinding);
@@ -738,6 +538,18 @@ bool RendererImplemented::Initialize()
 	if (GLExt::IsSupportedVertexArray())
 	{
 		GLExt::glGenVertexArrays(1, &defaultVertexArray_);
+	}
+
+	// Transpiled shader for OpenGL 3.x is transposed
+	if (GetDeviceType() == OpenGLDeviceType::OpenGL3 || GetDeviceType() == OpenGLDeviceType::OpenGLES3)
+	{
+		shader_unlit_->SetIsTransposeEnabled(true);
+		shader_distortion_->SetIsTransposeEnabled(true);
+		shader_lit_->SetIsTransposeEnabled(true);
+
+		shader_ad_unlit_->SetIsTransposeEnabled(true);
+		shader_ad_lit_->SetIsTransposeEnabled(true);
+		shader_ad_distortion_->SetIsTransposeEnabled(true);
 	}
 
 	return true;
@@ -766,7 +578,7 @@ bool RendererImplemented::BeginRendering()
 	impl->CalculateCameraProjectionMatrix();
 
 	// store state
-	if(m_restorationOfStates)
+	if (m_restorationOfStates)
 	{
 		m_originalState.blend = glIsEnabled(GL_BLEND);
 		m_originalState.cullFace = glIsEnabled(GL_CULL_FACE);
@@ -785,7 +597,7 @@ bool RendererImplemented::BeginRendering()
 		glGetIntegerv(GL_BLEND_EQUATION, &m_originalState.blendEquation);
 		glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &m_originalState.arrayBufferBinding);
 		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &m_originalState.elementArrayBufferBinding);
-		
+
 		for (size_t i = 0; i < m_originalState.boundTextures.size(); i++)
 		{
 			GLint bound = 0;
@@ -806,8 +618,8 @@ bool RendererImplemented::BeginRendering()
 
 	currentTextures_.clear();
 	m_renderState->GetActiveState().Reset();
-	m_renderState->Update( true );
-	
+	m_renderState->Update(true);
+
 	m_renderState->GetActiveState().TextureIDs.fill(0);
 
 	// reset renderer
@@ -829,7 +641,7 @@ bool RendererImplemented::EndRendering()
 	m_standardRenderer->ResetAndRenderingIfRequired();
 
 	// restore states
-	if(m_restorationOfStates)
+	if (m_restorationOfStates)
 	{
 		if (GLExt::IsSupportedVertexArray())
 		{
@@ -843,15 +655,27 @@ bool RendererImplemented::EndRendering()
 		}
 		GLExt::glActiveTexture(GL_TEXTURE0);
 
-		if (m_originalState.blend) glEnable(GL_BLEND); else glDisable(GL_BLEND);
-		if (m_originalState.cullFace) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
-		if (m_originalState.depthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
-		
+		if (m_originalState.blend)
+			glEnable(GL_BLEND);
+		else
+			glDisable(GL_BLEND);
+		if (m_originalState.cullFace)
+			glEnable(GL_CULL_FACE);
+		else
+			glDisable(GL_CULL_FACE);
+		if (m_originalState.depthTest)
+			glEnable(GL_DEPTH_TEST);
+		else
+			glDisable(GL_DEPTH_TEST);
+
 		if (GetDeviceType() == OpenGLDeviceType::OpenGL2)
 		{
-			if (m_originalState.texture) glEnable(GL_TEXTURE_2D); else glDisable(GL_TEXTURE_2D);
+			if (m_originalState.texture)
+				glEnable(GL_TEXTURE_2D);
+			else
+				glDisable(GL_TEXTURE_2D);
 		}
-		
+
 		glDepthFunc(m_originalState.depthFunc);
 		glDepthMask(m_originalState.depthWrite);
 		glCullFace(m_originalState.cullFaceMode);
@@ -863,7 +687,7 @@ bool RendererImplemented::EndRendering()
 
 		if (GetDeviceType() == OpenGLDeviceType::OpenGL3 || GetDeviceType() == OpenGLDeviceType::OpenGLES3)
 		{
-			for( int32_t i = 0; i < 4; i++ )
+			for (int32_t i = 0; i < 4; i++)
 			{
 				GLExt::glBindSampler(i, 0);
 			}
@@ -911,8 +735,10 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 
 	m_squareMaxCount = count;
 
-	if (m_vertexBuffer != nullptr) AddRef();
-	if (m_indexBuffer != nullptr) AddRef();
+	if (m_vertexBuffer != nullptr)
+		AddRef();
+	if (m_indexBuffer != nullptr)
+		AddRef();
 	ES_SAFE_DELETE(m_vertexBuffer);
 	ES_SAFE_DELETE(m_indexBuffer);
 
@@ -920,19 +746,22 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 	{
 		m_vertexBuffer =
 			VertexBuffer::Create(this, EffekseerRenderer::GetMaximumVertexSizeInAllTypes() * m_squareMaxCount * 4, true, false);
-		if (m_vertexBuffer == NULL) return;
+		if (m_vertexBuffer == NULL)
+			return;
 	}
 
 	// generate an index buffer
 	{
 		m_indexBuffer = IndexBuffer::Create(this, GetIndexSpriteCount() * 6, false, indexBufferStride_, false);
-		if (m_indexBuffer == nullptr) return;
+		if (m_indexBuffer == nullptr)
+			return;
 	}
 
 	// generate an index buffer for a wireframe
 	{
 		m_indexBufferForWireframe = IndexBuffer::Create(this, GetIndexSpriteCount() * 8, false, indexBufferStride_, false);
-		if( m_indexBufferForWireframe == nullptr) return;
+		if (m_indexBufferForWireframe == nullptr)
+			return;
 	}
 
 	// generate index data
@@ -955,7 +784,7 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 //----------------------------------------------------------------------------------
 ::Effekseer::SpriteRenderer* RendererImplemented::CreateSpriteRenderer()
 {
-	return new ::EffekseerRenderer::SpriteRendererBase<RendererImplemented, Vertex, VertexDistortion>(this);
+	return new ::EffekseerRenderer::SpriteRendererBase<RendererImplemented, false>(this);
 }
 
 //----------------------------------------------------------------------------------
@@ -963,7 +792,7 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 //----------------------------------------------------------------------------------
 ::Effekseer::RibbonRenderer* RendererImplemented::CreateRibbonRenderer()
 {
-	return new ::EffekseerRenderer::RibbonRendererBase<RendererImplemented, Vertex, VertexDistortion>( this );
+	return new ::EffekseerRenderer::RibbonRendererBase<RendererImplemented, false>(this);
 }
 
 //----------------------------------------------------------------------------------
@@ -971,7 +800,7 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 //----------------------------------------------------------------------------------
 ::Effekseer::RingRenderer* RendererImplemented::CreateRingRenderer()
 {
-	return new ::EffekseerRenderer::RingRendererBase<RendererImplemented, Vertex, VertexDistortion>(this);
+	return new ::EffekseerRenderer::RingRendererBase<RendererImplemented, false>(this);
 }
 
 //----------------------------------------------------------------------------------
@@ -979,7 +808,7 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 //----------------------------------------------------------------------------------
 ::Effekseer::ModelRenderer* RendererImplemented::CreateModelRenderer()
 {
-	return ModelRenderer::Create( this );
+	return ModelRenderer::Create(this);
 }
 
 //----------------------------------------------------------------------------------
@@ -987,16 +816,16 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 //----------------------------------------------------------------------------------
 ::Effekseer::TrackRenderer* RendererImplemented::CreateTrackRenderer()
 {
-	return new ::EffekseerRenderer::TrackRendererBase<RendererImplemented, Vertex, VertexDistortion>(this);
+	return new ::EffekseerRenderer::TrackRendererBase<RendererImplemented, false>(this);
 }
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-::Effekseer::TextureLoader* RendererImplemented::CreateTextureLoader( ::Effekseer::FileInterface* fileInterface )
+::Effekseer::TextureLoader* RendererImplemented::CreateTextureLoader(::Effekseer::FileInterface* fileInterface)
 {
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
-	return new TextureLoader( fileInterface );
+	return new TextureLoader(fileInterface);
 #else
 	return NULL;
 #endif
@@ -1005,16 +834,17 @@ void RendererImplemented::SetSquareMaxCount(int32_t count)
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-::Effekseer::ModelLoader* RendererImplemented::CreateModelLoader( ::Effekseer::FileInterface* fileInterface )
+::Effekseer::ModelLoader* RendererImplemented::CreateModelLoader(::Effekseer::FileInterface* fileInterface)
 {
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
-	return new ModelLoader( fileInterface );
+	return new ModelLoader(fileInterface, GetDeviceType());
 #else
 	return NULL;
 #endif
 }
 
-::Effekseer::MaterialLoader* RendererImplemented::CreateMaterialLoader(::Effekseer::FileInterface* fileInterface) {
+::Effekseer::MaterialLoader* RendererImplemented::CreateMaterialLoader(::Effekseer::FileInterface* fileInterface)
+{
 #ifdef __EFFEKSEER_RENDERER_INTERNAL_LOADER__
 	return new MaterialLoader(GetGraphicsDevice(), fileInterface);
 #else
@@ -1028,7 +858,10 @@ void RendererImplemented::SetBackground(GLuint background, bool hasMipmap)
 	m_background.HasMipmap = hasMipmap;
 }
 
-void RendererImplemented::SetBackgroundTexture(::Effekseer::TextureData* textureData) { m_background = *textureData; }
+void RendererImplemented::SetBackgroundTexture(::Effekseer::TextureData* textureData)
+{
+	m_background = *textureData;
+}
 
 EffekseerRenderer::DistortingCallback* RendererImplemented::GetDistortingCallback()
 {
@@ -1044,10 +877,9 @@ void RendererImplemented::SetDistortingCallback(EffekseerRenderer::DistortingCal
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void RendererImplemented::SetVertexBuffer( VertexBuffer* vertexBuffer, int32_t size )
+void RendererImplemented::SetVertexBuffer(VertexBuffer* vertexBuffer, int32_t size)
 {
-	if (m_currentVertexArray == nullptr ||
-		m_currentVertexArray->GetVertexBuffer() == nullptr)
+	if (m_currentVertexArray == nullptr || m_currentVertexArray->GetVertexBuffer() == nullptr)
 	{
 		GLExt::glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer->GetInterface());
 	}
@@ -1067,7 +899,7 @@ void RendererImplemented::SetVertexBuffer(GLuint vertexBuffer, int32_t size)
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void RendererImplemented::SetIndexBuffer( IndexBuffer* indexBuffer )
+void RendererImplemented::SetIndexBuffer(IndexBuffer* indexBuffer)
 {
 	if (m_currentVertexArray == nullptr || m_currentVertexArray->GetIndexBuffer() == nullptr)
 	{
@@ -1096,10 +928,22 @@ void RendererImplemented::SetIndexBuffer(GLuint indexBuffer)
 	}
 }
 
+void RendererImplemented::SetVertexBuffer(Effekseer::Backend::VertexBuffer* vertexBuffer, int32_t size)
+{
+	auto vb = static_cast<Backend::VertexBuffer*>(vertexBuffer);
+	SetVertexBuffer(vb->GetBuffer(), size);
+}
+
+void RendererImplemented::SetIndexBuffer(Effekseer::Backend::IndexBuffer* indexBuffer)
+{
+	auto ib = static_cast<Backend::IndexBuffer*>(indexBuffer);
+	SetIndexBuffer(ib->GetBuffer());
+}
+
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void RendererImplemented::SetVertexArray( VertexArray* vertexArray )
+void RendererImplemented::SetVertexArray(VertexArray* vertexArray)
 {
 	m_currentVertexArray = vertexArray;
 }
@@ -1110,9 +954,8 @@ void RendererImplemented::SetVertexArray( VertexArray* vertexArray )
 void RendererImplemented::SetLayout(Shader* shader)
 {
 	GLCheckError();
-	
-	if (m_currentVertexArray == nullptr || 
-		m_currentVertexArray->GetVertexBuffer() == nullptr)
+
+	if (m_currentVertexArray == nullptr || m_currentVertexArray->GetVertexBuffer() == nullptr)
 	{
 		shader->EnableAttribs();
 		shader->SetVertex();
@@ -1123,7 +966,7 @@ void RendererImplemented::SetLayout(Shader* shader)
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void RendererImplemented::DrawSprites( int32_t spriteCount, int32_t vertexOffset )
+void RendererImplemented::DrawSprites(int32_t spriteCount, int32_t vertexOffset)
 {
 	GLCheckError();
 
@@ -1144,14 +987,14 @@ void RendererImplemented::DrawSprites( int32_t spriteCount, int32_t vertexOffset
 	{
 		glDrawElements(GL_LINES, spriteCount * 8, stride, (void*)(vertexOffset / 4 * 8 * indexBufferCurrentStride_));
 	}
-	
+
 	GLCheckError();
 }
 
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
-void RendererImplemented::DrawPolygon( int32_t vertexCount, int32_t indexCount)
+void RendererImplemented::DrawPolygon(int32_t vertexCount, int32_t indexCount)
 {
 	GLCheckError();
 
@@ -1163,44 +1006,46 @@ void RendererImplemented::DrawPolygon( int32_t vertexCount, int32_t indexCount)
 	GLCheckError();
 }
 
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-Shader* RendererImplemented::GetShader(bool useTexture, ::Effekseer::RendererMaterialType materialType) const
+void RendererImplemented::DrawPolygonInstanced(int32_t vertexCount, int32_t indexCount, int32_t instanceCount)
 {
-	if (materialType == ::Effekseer::RendererMaterialType::BackDistortion)
+	GLCheckError();
+
+	impl->drawcallCount++;
+	impl->drawvertexCount += vertexCount * instanceCount;
+
+	GLExt::glDrawElementsInstanced(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, NULL, instanceCount);
+
+	GLCheckError();
+}
+
+Shader* RendererImplemented::GetShader(::EffekseerRenderer::StandardRendererShaderType type) const
+{
+	if (type == ::EffekseerRenderer::StandardRendererShaderType::AdvancedBackDistortion)
 	{
-		if (useTexture && GetRenderMode() == Effekseer::RenderMode::Normal)
-		{
-			return m_shader_distortion;
-		}
-		else
-		{
-			return m_shader_distortion;
-		}
+		return shader_ad_distortion_;
 	}
-	else if (materialType == ::Effekseer::RendererMaterialType::Lighting)
+	else if (type == ::EffekseerRenderer::StandardRendererShaderType::AdvancedLit)
 	{
-		if (useTexture && GetRenderMode() == Effekseer::RenderMode::Normal)
-		{
-			return m_shader_lighting;
-		}
-		else
-		{
-			return m_shader_lighting;
-		}
+		return shader_ad_lit_;
 	}
-	else
+	else if (type == ::EffekseerRenderer::StandardRendererShaderType::AdvancedUnlit)
 	{
-		if (useTexture && GetRenderMode() == Effekseer::RenderMode::Normal)
-		{
-			return m_shader;
-		}
-		else
-		{
-			return m_shader;
-		}
+		return shader_ad_unlit_;
 	}
+	else if (type == ::EffekseerRenderer::StandardRendererShaderType::BackDistortion)
+	{
+		return shader_distortion_;
+	}
+	else if (type == ::EffekseerRenderer::StandardRendererShaderType::Lit)
+	{
+		return shader_lit_;
+	}
+	else if (type == ::EffekseerRenderer::StandardRendererShaderType::Unlit)
+	{
+		return shader_unlit_;
+	}
+
+	return shader_unlit_;
 }
 
 //----------------------------------------------------------------------------------
@@ -1215,22 +1060,34 @@ void RendererImplemented::BeginShader(Shader* shader)
 	{
 		SetVertexArray(m_vao_wire_frame);
 	}
-	else if (shader == m_shader)
+	else if (shader == shader_unlit_)
 	{
-		SetVertexArray(m_vao);
+		SetVertexArray(vao_unlit_);
 	}
-	else if (shader == m_shader_distortion)
+	else if (shader == shader_distortion_)
 	{
-		SetVertexArray(m_vao_distortion);
+		SetVertexArray(vao_distortion_);
 	}
-	else if (shader == m_shader_lighting)
+	else if (shader == shader_lit_)
 	{
-		SetVertexArray(m_vao_lighting);
+		SetVertexArray(vao_lit_);
 	}
-    else if(m_currentVertexArray != nullptr)
-    {
-        SetVertexArray(m_currentVertexArray);
-    }
+	else if (shader == shader_ad_unlit_)
+	{
+		SetVertexArray(vao_ad_unlit_);
+	}
+	else if (shader == shader_ad_distortion_)
+	{
+		SetVertexArray(vao_ad_distortion_);
+	}
+	else if (shader == shader_ad_lit_)
+	{
+		SetVertexArray(vao_ad_lit_);
+	}
+	else if (m_currentVertexArray != nullptr)
+	{
+		SetVertexArray(m_currentVertexArray);
+	}
 	else
 	{
 		m_currentVertexArray = nullptr;
@@ -1263,7 +1120,7 @@ void RendererImplemented::EndShader(Shader* shader)
 	currentShader = nullptr;
 
 	GLCheckError();
-	
+
 	if (m_currentVertexArray)
 	{
 		if (m_currentVertexArray->GetVertexBuffer() == nullptr)
@@ -1338,7 +1195,7 @@ void RendererImplemented::SetTextures(Shader* shader, Effekseer::TextureData** t
 
 		GLExt::glActiveTexture(GL_TEXTURE0 + i);
 		glBindTexture(GL_TEXTURE_2D, id);
-		
+
 		if (textures[i] != nullptr)
 		{
 			m_renderState->GetActiveState().TextureIDs[i] = textures[i]->UserID;
@@ -1350,7 +1207,7 @@ void RendererImplemented::SetTextures(Shader* shader, Effekseer::TextureData** t
 			currentTextures_[i].UserPtr = nullptr;
 			m_renderState->GetActiveState().TextureIDs[i] = 0;
 		}
-		
+
 		if (shader->GetTextureSlotEnable(i))
 		{
 			GLExt::glUniform1i(shader->GetTextureSlot(i), i);
@@ -1367,10 +1224,11 @@ void RendererImplemented::SetTextures(Shader* shader, Effekseer::TextureData** t
 void RendererImplemented::ResetRenderState()
 {
 	m_renderState->GetActiveState().Reset();
-	m_renderState->Update( true );
+	m_renderState->Update(true);
 }
 
-Effekseer::TextureData* RendererImplemented::CreateProxyTexture(EffekseerRenderer::ProxyTextureType type) {
+Effekseer::TextureData* RendererImplemented::CreateProxyTexture(EffekseerRenderer::ProxyTextureType type)
+{
 
 	GLint bound = 0;
 	GLExt::glActiveTexture(GL_TEXTURE0);
@@ -1396,15 +1254,7 @@ Effekseer::TextureData* RendererImplemented::CreateProxyTexture(EffekseerRendere
 	GLuint texture = 0;
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexImage2D(GL_TEXTURE_2D,
-				 0,
-				 GL_RGBA,
-				 1,
-				 1,
-				 0,
-				 GL_RGBA,
-				 GL_UNSIGNED_BYTE,
-				 buf.data());
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf.data());
 
 	// Generate mipmap
 	GLExt::glGenerateMipmap(GL_TEXTURE_2D);
@@ -1419,7 +1269,8 @@ Effekseer::TextureData* RendererImplemented::CreateProxyTexture(EffekseerRendere
 	return textureData;
 }
 
-void RendererImplemented::DeleteProxyTexture(Effekseer::TextureData* data) {
+void RendererImplemented::DeleteProxyTexture(Effekseer::TextureData* data)
+{
 	if (data != nullptr)
 	{
 		GLuint texture = (GLuint)data->UserID;
@@ -1428,113 +1279,12 @@ void RendererImplemented::DeleteProxyTexture(Effekseer::TextureData* data) {
 	}
 }
 
-bool RendererImplemented::IsVertexArrayObjectSupported() const { return GLExt::IsSupportedVertexArray(); }
-
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-
-Model::InternalModel::InternalModel()
+bool RendererImplemented::IsVertexArrayObjectSupported() const
 {
-	VertexBuffer = 0;
-	IndexBuffer = 0;
+	return GLExt::IsSupportedVertexArray();
 }
 
-Model::InternalModel::~InternalModel()
-{
-	GLExt::glDeleteBuffers(1, &IndexBuffer);
-	GLExt::glDeleteBuffers(1, &VertexBuffer);
-}
-
-bool Model::InternalModel::TryDelayLoad()
-{
-	if(VertexBuffer > 0) return false;
-	
-	int arrayBufferBinding = 0;
-	int elementArrayBufferBinding = 0;
-	glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &arrayBufferBinding);
-	glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementArrayBufferBinding);
-
-	GLExt::glGenBuffers(1, &VertexBuffer);
-	if (VertexBuffer > 0)
-	{
-		GLExt::glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
-		GLExt::glBufferData(GL_ARRAY_BUFFER, delayVertexBuffer.size(), delayVertexBuffer.data(), GL_STATIC_DRAW);
-	}
-	
-	GLExt::glGenBuffers(1, &IndexBuffer);
-	if (IndexBuffer > 0)
-	{
-		GLExt::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IndexBuffer);
-		GLExt::glBufferData(GL_ELEMENT_ARRAY_BUFFER, delayIndexBuffer.size(), delayIndexBuffer.data(), GL_STATIC_DRAW);
-	}
-
-	GLExt::glBindBuffer(GL_ARRAY_BUFFER, arrayBufferBinding);
-	GLExt::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferBinding);
-
-	return true;
-}
-	
-Model::Model(void* data, int32_t size)
-	: ::Effekseer::Model(data, size)
-	, InternalModels(nullptr)
-	, ModelCount(1)
-{
-	InternalModels = new Model::InternalModel[GetFrameCount()];
-
-	for (int32_t f = 0; f < GetFrameCount(); f++)
-	{
-		auto vertexData = GetVertexes(f);
-		auto vertexCount = GetVertexCount(f);
-		auto faceData = GetFaces(f);
-		auto faceCount = GetFaceCount(f);
-
-		InternalModels[f].VertexCount = vertexCount;
-		InternalModels[f].IndexCount = faceCount * 3;
-		
-		GLExt::glGenBuffers(1, &InternalModels[f].VertexBuffer);
-		size_t vertexSize = vertexCount * sizeof(::Effekseer::Model::Vertex);
-
-		int arrayBufferBinding = 0;
-		int elementArrayBufferBinding = 0;
-		glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &arrayBufferBinding);
-		glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &elementArrayBufferBinding);
-
-		if (InternalModels[f].VertexBuffer > 0)
-		{
-			GLExt::glBindBuffer(GL_ARRAY_BUFFER, InternalModels[f].VertexBuffer);
-			GLExt::glBufferData(GL_ARRAY_BUFFER, vertexSize, vertexData, GL_STATIC_DRAW);
-		}
-		InternalModels[f].delayVertexBuffer.resize(vertexSize);
-		memcpy(InternalModels[f].delayVertexBuffer.data(), vertexData, vertexSize);
-		
-		GLExt::glGenBuffers(1, &InternalModels[f].IndexBuffer);
-		size_t indexSize = faceCount * sizeof(::Effekseer::Model::Face);
-
-		if (InternalModels[f].IndexBuffer > 0)
-		{
-			GLExt::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, InternalModels[f].IndexBuffer);
-			GLExt::glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexSize, faceData, GL_STATIC_DRAW);
-		}
-
-		GLExt::glBindBuffer(GL_ARRAY_BUFFER, arrayBufferBinding);
-		GLExt::glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferBinding);
-
-		InternalModels[f].delayIndexBuffer.resize(indexSize);
-		memcpy(InternalModels[f].delayIndexBuffer.data(), faceData, indexSize);
-	}
-}
-
-Model::~Model()
-{
-	ES_SAFE_DELETE_ARRAY(InternalModels);
-
-}
-
-//----------------------------------------------------------------------------------
-//
-//----------------------------------------------------------------------------------
-}
+} // namespace EffekseerRendererGL
 //----------------------------------------------------------------------------------
 //
 //----------------------------------------------------------------------------------
