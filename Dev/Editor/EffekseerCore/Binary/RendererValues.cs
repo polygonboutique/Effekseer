@@ -497,6 +497,10 @@ namespace Effekseer.Binary
                 }
 				*/
             }
+			else if (value.Type.Value == Data.RendererValues.ParamaterType.ProcedualModel)
+			{
+				var param = value.ProcedualModel;
+			}
 			else if (value.Type.Value == Data.RendererValues.ParamaterType.Model)
 			{
 				var param = value.Model;

@@ -528,6 +528,28 @@ namespace Effekseer.Data
 		}
 	}
 
+	public enum ProcedualModelType
+	{
+		Sphere,
+		Cone,
+		Cylinder,
+	}
+
+	public class ProcedualModelParameter
+	{
+		public Value.Enum<ProcedualModelType> Type { get; private set; } = new Value.Enum<ProcedualModelType>(ProcedualModelType.Sphere);
+
+
+		public Value.Float AngleBegin { get; private set; } = new Value.Float(0.0f);
+		public Value.Float AngleEnd { get; private set; } = new Value.Float(1.0f);
+		public Value.Float AxisBegin { get; private set; } = new Value.Float(0.0f);
+		public Value.Float AxisEnd { get; private set; } = new Value.Float(1.0f);
+		public Value.Int AxisDivision { get; private set; } = new Value.Int(10);
+		public Value.Int AngleDivision { get; private set; } = new Value.Int(10);
+
+		public Value.Float Radius { get; private set; } = new Value.Float(1.0f);
+	}
+
 	/// <summary>
 	/// 入出力に関する属性
 	/// </summary>
