@@ -548,6 +548,61 @@ namespace Effekseer.Data
 		public Value.Int AngleDivision { get; private set; } = new Value.Int(10);
 
 		public Value.Float Radius { get; private set; } = new Value.Float(1.0f);
+
+		public override bool Equals(object obj)
+		{
+			var param = obj as ProcedualModelParameter;
+			if (param == null)
+				return false;
+
+			if (Type.Value != param.Type.Value)
+				return false;
+
+			if (AngleBegin.Value != param.AngleBegin.Value)
+				return false;
+
+			if (AngleEnd.Value != param.AngleEnd.Value)
+				return false;
+
+			if (AxisBegin.Value != param.AxisBegin.Value)
+				return false;
+
+			if (AxisEnd.Value != param.AxisEnd.Value)
+				return false;
+
+			if (AxisDivision.Value != param.AxisDivision.Value)
+				return false;
+
+			if (AngleDivision.Value != param.AngleDivision.Value)
+				return false;
+
+			return true;
+		}
+
+		public override int GetHashCode()
+		{
+			var hash = Type.Value.GetHashCode();
+
+			hash = CombineHashCodes(new[] { hash, AngleBegin.Value.GetHashCode(), AngleEnd.Value.GetHashCode(), AxisBegin.Value.GetHashCode(), AxisEnd.Value.GetHashCode(), AxisDivision.Value.GetHashCode(), AxisDivision.Value.GetHashCode() });
+
+			hash = CombineHashCodes(new[] { hash, Radius.Value.GetHashCode() });
+			return hash;
+		}
+
+		/// <summary>
+		/// https://stackoverflow.com/questions/1646807/quick-and-simple-hash-code-combinations
+		/// </summary>
+		/// <param name="hashCodes"></param>
+		/// <returns></returns>
+		public static int CombineHashCodes(IEnumerable<int> hashCodes)
+		{
+			int hash = 5381;
+
+			foreach (var hashCode in hashCodes)
+				hash = ((hash << 5) + hash) ^ hashCode;
+
+			return hash;
+		}
 	}
 
 	/// <summary>

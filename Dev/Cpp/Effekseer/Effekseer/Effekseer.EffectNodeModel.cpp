@@ -23,80 +23,89 @@ namespace Effekseer
 //----------------------------------------------------------------------------------
 void EffectNodeModel::LoadRendererParameter(unsigned char*& pos, Setting* setting)
 {
-	int32_t type = 0;
-	memcpy(&type, pos, sizeof(int));
-	pos += sizeof(int);
-	assert(type == GetType());
-	EffekseerPrintDebug("Renderer : Model\n");
-
-	AlphaBlend = RendererCommon.AlphaBlend;
-
-	if (m_effect->GetVersion() >= 7)
+	if (Mode == EffectNodeModelMode::File)
 	{
-		float Magnification;
-		memcpy(&Magnification, pos, sizeof(float));
-		pos += sizeof(float);
-	}
 
-	memcpy(&ModelIndex, pos, sizeof(int));
-	pos += sizeof(int);
-
-	if (m_effect->GetVersion() < 15)
-	{
-		memcpy(&NormalTextureIndex, pos, sizeof(int));
+		int32_t type = 0;
+		memcpy(&type, pos, sizeof(int));
 		pos += sizeof(int);
-		EffekseerPrintDebug("NormalTextureIndex : %d\n", NormalTextureIndex);
-		RendererCommon.Texture2Index = NormalTextureIndex;
-		RendererCommon.BasicParameter.Texture2Index = NormalTextureIndex;
-		RendererCommon.BasicParameter.TextureFilter2 = RendererCommon.BasicParameter.TextureFilter1;
-		RendererCommon.BasicParameter.TextureWrap2 = RendererCommon.BasicParameter.TextureWrap1;
-	}
+		assert(type == GetType());
+		EffekseerPrintDebug("Renderer : Model\n");
 
-	if (m_effect->GetVersion() >= 12)
-	{
-		memcpy(&Billboard, pos, sizeof(int));
-		pos += sizeof(int);
-	}
-	else
-	{
-		Billboard = BillboardType::Fixed;
-	}
+		AlphaBlend = RendererCommon.AlphaBlend;
 
-	if (m_effect->GetVersion() < 15)
-	{
-		int32_t lighting;
-		memcpy(&lighting, pos, sizeof(int));
-		pos += sizeof(int);
-		Lighting = lighting > 0;
-
-		if (Lighting && !RendererCommon.Distortion)
+		if (m_effect->GetVersion() >= 7)
 		{
-			RendererCommon.MaterialType = RendererMaterialType::Lighting;
-			RendererCommon.BasicParameter.MaterialType = RendererMaterialType::Lighting;
+			float Magnification;
+			memcpy(&Magnification, pos, sizeof(float));
+			pos += sizeof(float);
+		}
+
+		memcpy(&ModelIndex, pos, sizeof(int));
+		pos += sizeof(int);
+
+		if (m_effect->GetVersion() < 15)
+		{
+			memcpy(&NormalTextureIndex, pos, sizeof(int));
+			pos += sizeof(int);
+			EffekseerPrintDebug("NormalTextureIndex : %d\n", NormalTextureIndex);
+			RendererCommon.Texture2Index = NormalTextureIndex;
+			RendererCommon.BasicParameter.Texture2Index = NormalTextureIndex;
+			RendererCommon.BasicParameter.TextureFilter2 = RendererCommon.BasicParameter.TextureFilter1;
+			RendererCommon.BasicParameter.TextureWrap2 = RendererCommon.BasicParameter.TextureWrap1;
+		}
+
+		if (m_effect->GetVersion() >= 12)
+		{
+			memcpy(&Billboard, pos, sizeof(int));
+			pos += sizeof(int);
+		}
+		else
+		{
+			Billboard = BillboardType::Fixed;
+		}
+
+		if (m_effect->GetVersion() < 15)
+		{
+			int32_t lighting;
+			memcpy(&lighting, pos, sizeof(int));
+			pos += sizeof(int);
+			Lighting = lighting > 0;
+
+			if (Lighting && !RendererCommon.Distortion)
+			{
+				RendererCommon.MaterialType = RendererMaterialType::Lighting;
+				RendererCommon.BasicParameter.MaterialType = RendererMaterialType::Lighting;
+			}
+		}
+
+		memcpy(&Culling, pos, sizeof(int));
+		pos += sizeof(int);
+
+		AllColor.load(pos, m_effect->GetVersion());
+
+		if (m_effect->GetVersion() >= 1600)
+		{
+			int FalloffFlag = 0;
+			memcpy(&FalloffFlag, pos, sizeof(int));
+			pos += sizeof(int);
+			EnableFalloff = (FalloffFlag == 1);
+
+			if (EnableFalloff)
+			{
+				memcpy(&FalloffParam, pos, sizeof(ModelRenderer::FalloffParameter));
+				pos += sizeof(ModelRenderer::FalloffParameter);
+			}
+		}
+		else
+		{
+			EnableFalloff = false;
 		}
 	}
-
-	memcpy(&Culling, pos, sizeof(int));
-	pos += sizeof(int);
-
-	AllColor.load(pos, m_effect->GetVersion());
-
-	if (m_effect->GetVersion() >= 1600)
+	else if (Mode == EffectNodeModelMode::Procedual)
 	{
-		int FalloffFlag = 0;
-		memcpy(&FalloffFlag, pos, sizeof(int));
-		pos += sizeof(int);
-		EnableFalloff = (FalloffFlag == 1);
-
-		if (EnableFalloff)
-		{
-			memcpy(&FalloffParam, pos, sizeof(ModelRenderer::FalloffParameter));
-			pos += sizeof(ModelRenderer::FalloffParameter);
-		}
-	}
-	else
-	{
-		EnableFalloff = false;
+		// TODO
+		assert(0);
 	}
 }
 

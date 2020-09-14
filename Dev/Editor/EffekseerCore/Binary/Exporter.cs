@@ -31,6 +31,8 @@ namespace Effekseer.Binary
 
 		public HashSet<string> Curves = new HashSet<string>();
 
+		public HashSet<Data.ProcedualModelParameter> ProcedualModels = new HashSet<ProcedualModelParameter>();
+
 		/// <summary>
 		/// Export effect data
 		/// </summary>
@@ -59,6 +61,8 @@ namespace Effekseer.Binary
 			Materials = new HashSet<string>();
 
 			Curves = new HashSet<string>();
+
+			ProcedualModels = new HashSet<ProcedualModelParameter>();
 
 			Action<Data.NodeBase> get_textures = null;
 			get_textures = (node) =>
@@ -550,6 +554,45 @@ namespace Effekseer.Binary
 				}
 			}
 
+			// Procedual meshes
+
+			Action<Data.NodeBase> get_procedual_models = null;
+			get_procedual_models = (node) =>
+			{
+				if (node is Data.Node)
+				{
+					var _node = node as Data.Node;
+
+					if (IsRenderedNode(_node) && _node.DrawingValues.Type.Value == Data.RendererValues.ParamaterType.ProcedualModel)
+					{
+						var param = _node.DrawingValues.ProcedualModel.Parameter;
+
+						if (!ProcedualModels.Contains(param))
+						{
+							ProcedualModels.Add(param);
+						}
+					}
+				}
+
+				for (int i = 0; i < node.Children.Count; i++)
+				{
+					get_procedual_models(node.Children[i]);
+				}
+			};
+
+			get_procedual_models(rootNode);
+
+			Dictionary<ProcedualModelParameter, int> procedual_mesh_and_index = new Dictionary<ProcedualModelParameter, int>();
+			{
+				int index = 0;
+				foreach (var wave in ProcedualModels.ToList().OrderBy(_ => _))
+				{
+					procedual_mesh_and_index.Add(wave, index);
+					index++;
+				}
+			}
+
+
 			// get all nodes
 			var nodes = new List<Data.Node>();
 
@@ -656,6 +699,23 @@ namespace Effekseer.Binary
 					data.Add(path);
 					data.Add(new byte[] { 0, 0 });
 				}
+
+				// export procedual meshes
+				data.Add(BitConverter.GetBytes(procedual_mesh_and_index.Count));
+				foreach (var pm in procedual_mesh_and_index)
+				{
+					var param = pm.Key;
+					data.Add(param.Type.Value.GetBytes());
+					data.Add(param.AngleBegin.Value.GetBytes());
+					data.Add(param.AngleEnd.Value.GetBytes());
+					data.Add(param.AxisBegin.Value.GetBytes());
+					data.Add(param.AxisEnd.Value.GetBytes());
+					data.Add(param.AxisDivision.Value.GetBytes());
+					data.Add(param.AngleDivision.Value.GetBytes());
+
+					data.Add(param.Radius.Value.GetBytes());
+				}
+
 			}
 
 			var compiler = new InternalScript.Compiler();

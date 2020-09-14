@@ -159,6 +159,13 @@ public:
 
 	/**
 	@brief
+	\~English set model data into specified index
+	\~Japanese	指定されたインデックスにモデルを設定する。
+	*/
+	void SetProcedualModel(Effect* effect, int32_t index, Model* data);
+
+	/**
+	@brief
 	\~English set loading data
 	\~Japanese	ロード用データを設定する。
 	*/

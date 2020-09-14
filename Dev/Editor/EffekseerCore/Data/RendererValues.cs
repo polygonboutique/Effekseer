@@ -1223,7 +1223,7 @@ namespace Effekseer.Data
 
 			[Key(key = "RS_ParameterType_Model")]
 			[Icon(code = "\xec25")]
-			ProcedualModel = 6,
+			ProcedualModel = 7,
 
 			[Key(key = "RS_ParameterType_Model")]
 			[Icon(code = "\xec25")]

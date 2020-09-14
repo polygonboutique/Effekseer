@@ -16,6 +16,7 @@
 #include "Effekseer.Setting.h"
 #include "Effekseer.SoundLoader.h"
 #include "Effekseer.TextureLoader.h"
+#include "Model/ProcedualModelGenerator.h"
 #include "Model/ProcedualModelParameter.h"
 #include "Utils/Effekseer.BinaryReader.h"
 
@@ -171,6 +172,13 @@ void EffectFactory::SetCurve(Effect* effect, int32_t index, void* data)
 	effect_->curves_[index] = data;
 }
 
+void EffectFactory::SetProcedualModel(Effect* effect, int32_t index, Model* data)
+{
+	auto effect_ = static_cast<EffectImplemented*>(effect);
+	assert(0 <= index && index < effect_->procedualModels_.size());
+	effect_->procedualModels_[index] = data;
+}
+
 void EffectFactory::SetLoadingParameter(Effect* effect, ReferenceObject* parameter)
 {
 	auto effect_ = static_cast<EffectImplemented*>(effect);
@@ -204,6 +212,7 @@ void EffectFactory::OnLoadingResource(Effect* effect, const void* data, int32_t 
 	auto modelLoader = effect->GetSetting()->GetModelLoader();
 	auto materialLoader = effect->GetSetting()->GetMaterialLoader();
 	auto curveLoader = effect->GetSetting()->GetCurveLoader();
+	auto pmGenerator = effect->GetSetting()->GetProcedualMeshGenerator();
 
 	if (textureLoader != nullptr)
 	{
@@ -282,6 +291,15 @@ void EffectFactory::OnLoadingResource(Effect* effect, const void* data, int32_t 
 			SetCurve(effect, i, resource);
 		}
 	}
+
+	if (pmGenerator != nullptr)
+	{
+		for (int32_t ind = 0; ind < effect->GetProcedualModelCount(); ind++)
+		{
+			auto model = pmGenerator->Generate(effect->GetProcedualModelParameter(ind));
+			SetProcedualModel(effect, ind, model);	
+		}
+	}
 }
 
 void EffectFactory::OnUnloadingResource(Effect* effect)
@@ -291,6 +309,7 @@ void EffectFactory::OnUnloadingResource(Effect* effect)
 	auto modelLoader = effect->GetSetting()->GetModelLoader();
 	auto materialLoader = effect->GetSetting()->GetMaterialLoader();
 	auto curveLoader = effect->GetSetting()->GetCurveLoader();
+	auto pmGenerator = effect->GetSetting()->GetProcedualMeshGenerator();
 
 	if (textureLoader != nullptr)
 	{
@@ -346,6 +365,15 @@ void EffectFactory::OnUnloadingResource(Effect* effect)
 		{
 			curveLoader->Unload(effect->GetCurve(i));
 			SetCurve(effect, i, nullptr);
+		}
+	}
+
+	if (pmGenerator != nullptr)
+	{
+		for (int32_t ind = 0; ind < effect->GetProcedualModelCount(); ind++)
+		{
+			pmGenerator->Ungenerate(effect->GetProcedualModel(ind));
+			SetProcedualModel(effect, ind, nullptr);
 		}
 	}
 }
@@ -624,6 +652,20 @@ bool EffectImplemented::LoadBody(const uint8_t* data, int32_t size, float mag)
 
 				curves_[i] = nullptr;
 			}
+		}
+
+		// procedual material
+		int32_t pmCount = 0;
+
+		binaryReader.Read(pmCount, 0, elementCountMax);
+
+		procedualModelParameters_.resize(pmCount);
+		procedualModels_.resize(pmCount);
+
+		for (int32_t i = 0; i < pmCount; i++)
+		{
+			procedualModelParameters_[i].Load(binaryReader);
+			procedualModels_[i] = nullptr;
 		}
 	}
 
